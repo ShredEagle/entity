@@ -1,0 +1,10 @@
+##
+## External packages
+##
+# Note: Cannot use CONFIG because we rely on Conan generator "cmake_find_package"
+#@find_package@(Name @REQUIRED@ COMPONENTS name)
+
+##
+## Internal packages (components in the same repository)
+##
+#@find_package@(Entity CONFIG @REQUIRED@ COMPONENTS name)
