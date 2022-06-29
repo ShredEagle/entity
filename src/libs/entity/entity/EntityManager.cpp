@@ -4,18 +4,6 @@ namespace ad {
 namespace ent {
 
 
-EntityRecord Entity::record() const
-{
-    return mManager.mHandleMap.at(mKey);
-}
-
-
-void Entity::updateRecord(EntityRecord aNewRecord)
-{
-    mManager.mHandleMap.at(mKey) = aNewRecord;
-}
-
-
 Archetype & EntityManager::getArchetype(const TypeSet & aTypeSet)
 {
     return mArchetypes.at(aTypeSet);

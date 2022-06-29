@@ -3,12 +3,14 @@ set(TARGET_NAME entity)
 set(${TARGET_NAME}_HEADERS
     Archetype.h
     Component.h
+    Entity.h
     EntityManager.h
     Query.h
 )
 
 set(${TARGET_NAME}_SOURCES
     Archetype.cpp
+    Entity.cpp
     EntityManager.cpp
     Query.cpp
 )

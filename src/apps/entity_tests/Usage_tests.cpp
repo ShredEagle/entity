@@ -48,110 +48,73 @@ SCENARIO("Populating a world.")
         {
             REQUIRE(world.countLiveEntities() == 0);
 
-            Entity e1 = world.addEntity();
+            Handle<Entity> h1 = world.addEntity();
             CHECK(world.countLiveEntities() == 1);
 
             world.addEntity();
             CHECK(world.countLiveEntities() == 2);
         }
 
-        GIVEN("An entity added to the manager.")
+        GIVEN("An entity is added to the manager.")
         {
-            Entity e1 = world.addEntity();
+            Handle<Entity> h1 = world.addEntity();
             // The default empty archetype as soon as one entity was added
             REQUIRE(Inspector<EntityManager>::countArchetypes(world) == 1);
 
             WHEN("A component (A) is added.")
             {
-                REQUIRE_FALSE(e1.has<ComponentA>());
-
                 const double refValue = 8.6;
-                e1.add(ComponentA{refValue});
 
-                THEN("The total number of entities is not changed")
                 {
-                    CHECK(world.countLiveEntities() == 1);
+                    Phase phase;
+                    Entity e1 = *h1.get(phase);
+                    REQUIRE_FALSE(e1.has<ComponentA>());
+
+                    e1.add(ComponentA{refValue});
                 }
 
-                THEN("An archetype was created, containing the component.")
+                GIVEN("The entity associated to the handle.")
                 {
-                    CHECK(Inspector<EntityManager>::countArchetypes(world) == 2);
-                }
+                    Phase phase;
+                    Entity e1 = *h1.get(phase);
 
-                THEN("Component presence can be tested.")
-                {
-                    CHECK(e1.has<ComponentA>());
-                }
-
-                THEN("Component value can be read.")
-                {
-                    CHECK(e1.get<ComponentA>().d == refValue);
-                }
-
-                GIVEN("A query on this component.")
-                {
-                    Query<ComponentA> queryA{world};
-
-                    THEN("It matches the expected number of entities.")
+                    THEN("The total number of entities is not changed")
                     {
-                        CHECK(queryA.countMatches() == 1);
+                        CHECK(world.countLiveEntities() == 1);
                     }
-                }
 
-                GIVEN("A query on another component.")
-                {
-                    Query<ComponentB> queryB{world};
-
-                    THEN("There are no matches.")
+                    THEN("An archetype was created, containing the component.")
                     {
-                        CHECK(queryB.countMatches() == 0);
+                        CHECK(Inspector<EntityManager>::countArchetypes(world) == 2);
                     }
-                }
 
-                GIVEN("A query on both components.")
-                {
-                    Query<ComponentA, ComponentB> queryBoth{world};
-
-                    THEN("There are no matches.")
+                    THEN("Component presence can be tested.")
                     {
-                        CHECK(queryBoth.countMatches() == 0);
-                    }
-                }
-
-                WHEN("A second component (B) is added.")
-                {
-                    const std::string refString{"Here we are."};
-                    e1.add<ComponentB>({.str = refString});
-
-                    THEN("Both component presence can be tested.")
-                    {
-                        CHECK(e1.has<ComponentB>());
                         CHECK(e1.has<ComponentA>());
                     }
 
-                    THEN("Both component values can be read.")
+                    THEN("Component value can be read.")
                     {
-                        CHECK(e1.get<ComponentB>().str == refString);
                         CHECK(e1.get<ComponentA>().d == refValue);
                     }
 
-                    GIVEN("A query on component A.")
+                    GIVEN("A query on this component.")
                     {
                         Query<ComponentA> queryA{world};
 
-                        THEN("It matches the one entity.")
+                        THEN("It matches the expected number of entities.")
                         {
                             CHECK(queryA.countMatches() == 1);
                         }
                     }
 
-                    GIVEN("A query on component B.")
+                    GIVEN("A query on another component.")
                     {
                         Query<ComponentB> queryB{world};
 
-                        THEN("It matches the one entity.")
+                        THEN("There are no matches.")
                         {
-                            CHECK(queryB.countMatches() == 1);
+                            CHECK(queryB.countMatches() == 0);
                         }
                     }
 
@@ -159,12 +122,70 @@ SCENARIO("Populating a world.")
                     {
                         Query<ComponentA, ComponentB> queryBoth{world};
 
-                        THEN("It matches the one entity.")
+                        THEN("There are no matches.")
                         {
-                            CHECK(queryBoth.countMatches() == 1);
+                            CHECK(queryBoth.countMatches() == 0);
                         }
                     }
+                }
 
+                WHEN("A second component (B) is added.")
+                {
+                    const std::string refString{"Here we are."};
+
+                    {
+                        Phase phase;
+                        Entity e1 = *h1.get(phase);
+                        e1.add<ComponentB>({.str = refString});
+                    }
+
+                    GIVEN("The entity associated to the handle.")
+                    {
+                        Phase phase;
+                        Entity e1 = *h1.get(phase);
+
+                        THEN("Both component presence can be tested.")
+                        {
+                            CHECK(e1.has<ComponentB>());
+                            CHECK(e1.has<ComponentA>());
+                        }
+
+                        THEN("Both component values can be read.")
+                        {
+                            CHECK(e1.get<ComponentB>().str == refString);
+                            CHECK(e1.get<ComponentA>().d == refValue);
+                        }
+
+                        GIVEN("A query on component A.")
+                        {
+                            Query<ComponentA> queryA{world};
+
+                            THEN("It matches the one entity.")
+                            {
+                                CHECK(queryA.countMatches() == 1);
+                            }
+                        }
+
+                        GIVEN("A query on component B.")
+                        {
+                            Query<ComponentB> queryB{world};
+
+                            THEN("It matches the one entity.")
+                            {
+                                CHECK(queryB.countMatches() == 1);
+                            }
+                        }
+
+                        GIVEN("A query on both components.")
+                        {
+                            Query<ComponentA, ComponentB> queryBoth{world};
+
+                            THEN("It matches the one entity.")
+                            {
+                                CHECK(queryBoth.countMatches() == 1);
+                            }
+                        }
+                    }
                 }
             }
         }

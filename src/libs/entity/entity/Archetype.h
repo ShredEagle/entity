@@ -112,7 +112,7 @@ private:
 
 
 //
-//
+// Implementations
 //
 template <class T_data>
 Storage<T_data> & StorageBase::as()

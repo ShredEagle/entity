@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Archetype.h"
+#include "Entity.h"
 
 #include <algorithm>
 #include <map>
@@ -12,72 +13,10 @@ namespace ad {
 namespace ent {
 
 
-class HandleKey
-{
-public:
-    HandleKey() = default;
-
-    operator std::size_t () const
-    { return mIndex; }
-
-    HandleKey operator++(int /*postfix*/)
-    {
-        return HandleKey{mIndex++};
-    }
-
-private:
-    HandleKey(std::size_t aIndex) :
-        mIndex{aIndex}
-    {}
-
-    std::size_t mIndex{0};
-};
-
-
-struct EntityRecord
-{
-    Archetype * mArchetype;
-    EntityIndex mIndex;
-};
-
-
-class EntityManager;
-
-
-class Entity
-{
-    friend class EntityManager;
-
-public:
-    /// \warning Thread unsafe!
-    template <class T_component>
-    Entity & add(T_component aComponent);
-
-    template <class T_component>
-    bool has();
-
-    template <class T_component>
-    T_component & get();
-
-private:
-    Entity(HandleKey aKey, EntityManager & aManager) :
-        mKey{aKey},
-        mManager{aManager}
-    {}
-
-    EntityRecord record() const;
-
-    void updateRecord(EntityRecord aNewRecord);
-
-    HandleKey mKey;
-    EntityManager & mManager;
-};
-
-
 // TODO implement handle reuse
 class EntityManager
 {
-    friend class Entity;
+    friend class Handle<Entity>;
     template <class...>
     friend class Query;
 
@@ -89,7 +28,7 @@ public:
     //EntityManager();
 
     /// \warning Thread unsafe!
-    Entity addEntity();
+    Handle<Entity> addEntity();
 
     std::size_t countLiveEntities() const;
 
@@ -109,12 +48,14 @@ private:
 //
 // Implementations
 //
+// NOTE: In this file because it needs EntityManager definition.
 template <class T_component>
-Entity & Entity::add(T_component aComponent)
+void Handle<Entity>::add(T_component aComponent)
 {
     EntityRecord initialRecord = record();
 
-    Archetype & targetArchetype = mManager.extendArchetype<T_component>(*initialRecord.mArchetype);
+    Archetype & targetArchetype =
+        mManager.extendArchetype<T_component>(*initialRecord.mArchetype);
     initialRecord.mArchetype->move(initialRecord.mIndex, targetArchetype);
     EntityIndex newIndex = targetArchetype.push(std::move(aComponent));
 
@@ -123,26 +64,10 @@ Entity & Entity::add(T_component aComponent)
         .mIndex = newIndex,
     };
     updateRecord(newRecord);
-
-    return *this;
 }
 
 
-template <class T_component>
-bool Entity::has()
-{
-    return record().mArchetype->has<T_component>();
-}
-
-
-template <class T_component>
-T_component & Entity::get()
-{
-    return record().mArchetype->get<T_component>(record().mIndex);
-}
-
-
-inline Entity EntityManager::addEntity()
+inline Handle<Entity> EntityManager::addEntity()
 {
     auto & archetype = mArchetypes[gEmptyTypeSet];
     mHandleMap[mNextHandle] = EntityRecord{
@@ -150,7 +75,7 @@ inline Entity EntityManager::addEntity()
         0, // no data anyway
     };
 
-    return Entity{
+    return Handle<Entity>{
         mNextHandle++,
         *this
     };
