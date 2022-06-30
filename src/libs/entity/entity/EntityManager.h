@@ -17,6 +17,7 @@ namespace ent {
 // TODO implement reuse of handle from the free list
 class EntityManager
 {
+    friend class Archetype;
     friend class Handle<Entity>;
     template <class...>
     friend class Query;
@@ -29,6 +30,7 @@ public:
     //EntityManager();
 
     /// \warning Thread unsafe!
+    // TODO should be made thread safe (take a look at lock-free approaches)
     Handle<Entity> addEntity();
 
     std::size_t countLiveEntities() const;
@@ -65,7 +67,7 @@ void Handle<Entity>::add(T_component aComponent)
 
     // The target archetype will grow by one: the size before insertion will be the inserted index.
     EntityIndex newIndex = targetArchetype.countEntities();
-    initialRecord.mArchetype->move(initialRecord.mIndex, targetArchetype);
+    initialRecord.mArchetype->move(initialRecord.mIndex, targetArchetype, mManager);
 
     // TODO ideally, we get rid of this test, so the implementations is as fast as possible
     // when the component is not present,
@@ -96,13 +98,14 @@ inline Handle<Entity> EntityManager::addEntity()
     auto & archetype = mArchetypes[gEmptyTypeSet];
     mHandleMap[mNextHandle] = EntityRecord{
         &archetype,
-        0, // no data anyway
+        archetype.countEntities(),
     };
 
-    return Handle<Entity>{
-        mNextHandle++,
-        *this
-    };
+    HandleKey key = mNextHandle++;
+    // Has to be done after taking the entity count as index, for the new EntityRecord.
+    archetype.pushKey(key);
+
+    return Handle<Entity>{key, *this};
 }
 
 

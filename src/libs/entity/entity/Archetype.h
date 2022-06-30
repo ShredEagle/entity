@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Component.h"
+#include "HandleKey.h"
 
 #include <memory>
 #include <stdexcept>
@@ -72,6 +73,8 @@ public:
 };
 
 
+class EntityManager; //forward
+
 // TODO Establish what it means for an Archetype to be constant:
 // * At least means that entities cannot be added/removed from the archetype.
 // * Additionally, could mean that the entities' components' values are constant.
@@ -97,17 +100,24 @@ public:
     template <class T_component>
     T_component & get(EntityIndex aEntityIndex);
 
-    void remove(EntityIndex aEntityIndex);
+    void remove(EntityIndex aEntityIndex, EntityManager & aManager);
 
     // Intended for tests
     bool verifyConsistency();
 
     // TODO should probably not be public
     /// \brief Move an entity from this Archetype to aDestination Archetype.
-    void move(EntityIndex aEntityIndex, Archetype & aDestination);
+    /// \return The HandleKey of the entity which was moved to the index previously
+    void move(EntityIndex aEntityIndex,
+              Archetype & aDestination,
+              EntityManager & aManager);
 
     template <class T_component>
     EntityIndex push(T_component aComponent);
+
+    /// \attention For use by the EntityManager on the empty archetype only.
+    void pushKey(HandleKey aKey)
+    { mHandles.push_back(aKey); }
 
 private:
 
@@ -116,12 +126,38 @@ private:
     //TypeSet mTypeSet;
     std::vector<ComponentId> mType;
     std::vector<std::unique_ptr<StorageBase>> mStores;
+    // The handles of the entities stored in this archetype, in the same order than in each Store.
+    std::vector<HandleKey> mHandles;
 };
 
 
 //
 // Implementations
 //
+
+namespace detail
+{
+
+    template <class T_element>
+    void eraseByMoveOver(std::vector<T_element> & aVector, std::size_t aErasedIndex)
+    {
+        assert(aVector.size() > aErasedIndex);
+
+        // Implementer note:
+        // This method moves the last element of the store onto the removed index,
+        // then it erases the last element.
+
+        auto elementIt = aVector.begin() + aErasedIndex;
+        // Can only remove from a non-empty storage, so end()-1 must be valid.
+        auto backIt = aVector.end() - 1;
+
+        std::move(backIt, aVector.end(), elementIt);
+        aVector.pop_back();
+    }
+
+
+} // namespace detail
+
 template <class T_data>
 Storage<T_data> & StorageBase::as()
 {
@@ -139,18 +175,7 @@ T_data & StorageBase::get(EntityIndex aElementId)
 template <class T_component>
 void Storage<T_component>::remove(EntityIndex aSourceIndex)
 {
-    // Implementer note:
-    // This method moves the last element of the store onto the removed index,
-    // then it erases the last element.
-
-    assert(size() > aSourceIndex);
-
-    auto elementIt = mArray.begin() + aSourceIndex;
-    // Can only remove from a non-empty storage, so end()-1 must be valid.
-    auto backIt = mArray.end() - 1;
-
-    std::move(backIt, mArray.end(), elementIt);
-    mArray.erase(backIt);
+    detail::eraseByMoveOver(mArray, aSourceIndex);
 }
 
 

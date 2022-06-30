@@ -58,7 +58,7 @@ std::optional<Entity> Handle<Entity>::get(Phase & aPhase)
 void Handle<Entity>::erase()
 {
     EntityRecord rec = record();
-    rec.mArchetype->remove(rec.mIndex);
+    rec.mArchetype->remove(rec.mIndex, mManager);
 
     mManager.freeHandle(mKey);
 }

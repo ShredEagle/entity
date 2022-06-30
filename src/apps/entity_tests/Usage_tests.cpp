@@ -282,3 +282,68 @@ SCENARIO("Components duplication.")
         }
     }
 }
+
+
+SCENARIO("Erasing entities remove corresponding components from archetypes.")
+{
+    GIVEN("An entity manager with two entities.")
+    {
+        EntityManager world;
+        Handle<Entity> h1 = world.addEntity();
+        Handle<Entity> h2 = world.addEntity();
+
+        GIVEN("A component (B) with distinct values on each entity.")
+        {
+            const std::string firstValue = "first";
+            const std::string secondValue = "second";
+
+            {
+                Phase phase;
+                h1.get(phase)->add<ComponentB>({firstValue});
+                h2.get(phase)->add<ComponentB>({secondValue});
+            }
+
+            Archetype & archetype =
+                Inspector<EntityManager>::getArchetype<ComponentB>(world);
+            REQUIRE(archetype.countEntities() == 2);
+
+            WHEN("The first entity is erased.")
+            {
+                {
+                    Phase phase;
+                    h1.get(phase)->erase();
+                }
+                THEN("The corresponding archetype is down to a single entry.")
+                {
+                    CHECK(archetype.countEntities() == 1);
+
+                    THEN("The handle to the second element correctly accesses the second value.")
+                    {
+                        CHECK(h2.isValid());
+                        Phase phase;
+                        CHECK(h2.get(phase)->get<ComponentB>().str == secondValue);
+                    }
+                }
+            }
+
+            WHEN("The second entity is erased.")
+            {
+                {
+                    Phase phase;
+                    h2.get(phase)->erase();
+                }
+                THEN("The corresponding archetype is down to a single entry.")
+                {
+                    CHECK(archetype.countEntities() == 1);
+
+                    THEN("The handle to the first element correctly accesses the first value.")
+                    {
+                        CHECK(h1.isValid());
+                        Phase phase;
+                        CHECK(h1.get(phase)->get<ComponentB>().str == firstValue);
+                    }
+                }
+            }
+        }
+    }
+}

@@ -1,5 +1,6 @@
 #include "Archetype.h"
-#include "entity/Component.h"
+#include "Component.h"
+#include "EntityManager.h"
 
 
 namespace ad {
@@ -8,16 +9,14 @@ namespace ent {
 
 std::size_t Archetype::countEntities() const
 {
-    assert(mType.size() > 0);
-
-    // All stores **have to** be of the same size.
-    auto result = mStores.front()->size();
+    auto result = mHandles.size();
 
     // TODO implement level of assertion / way to disable.
-    // Assert all stores are indeed of the same size.
-    for(auto storeIt = mStores.begin() + 1; storeIt != mStores.end(); ++storeIt)
+    // All stores **have to** be of the same size.
+    for(auto storeIt = mStores.begin(); storeIt != mStores.end(); ++storeIt)
     {
-        assert((*storeIt)->size() == result);
+        auto s = (*storeIt)->size();
+        assert(s == result);
     }
 
     return result;
@@ -32,6 +31,12 @@ bool Archetype::verifyConsistency()
     }
 
     std::size_t entitiesCount = countEntities();
+
+    if(entitiesCount != mHandles.size())
+    {
+        return false;
+    }
+
     for(std::size_t storeId = 0; storeId != mType.size(); ++storeId)
     {
         if(mType[storeId] != mStores[storeId]->getType())
@@ -48,26 +53,42 @@ bool Archetype::verifyConsistency()
 }
 
 
-void Archetype::move(std::size_t aEntityIndex, Archetype & aDestination)
+void Archetype::move(std::size_t aEntityIndex, Archetype & aDestination, EntityManager & aManager)
 {
+    // Move the matching components from the stores of `this` archetype to the destination stores.
     for(std::size_t sourceStoreId = 0; sourceStoreId != mType.size(); ++sourceStoreId)
     {
         for(std::size_t destinationStoreId = 0; destinationStoreId != mType.size(); ++destinationStoreId)
         {
-            // Found matching components, move from source into destination
+            // Found matching components, move-push from source at the back of destination
             if(mType[sourceStoreId] == aDestination.mType[destinationStoreId])
             {
                 aDestination.mStores[destinationStoreId]->moveFrom(aEntityIndex, *mStores[sourceStoreId]);
             }
         }
     }
+    // Copy the HandleKey for the moved entity.
+    aDestination.mHandles.push_back(mHandles[aEntityIndex]);
 
-    remove(aEntityIndex);
+    remove(aEntityIndex, aManager);
 }
 
 
-void Archetype::remove(EntityIndex aEntityIndex)
+void Archetype::remove(EntityIndex aEntityIndex, EntityManager & aManager)
 {
+    // Redirects the handle of the entity that will take the place of the removed entity
+    {
+        // This is the entity that will take the place of the removed entity in the stores.
+        HandleKey replacementEntity = mHandles.back();
+        // Overwrite with the same value if the replacement entity is the one at aEntityIndex
+        // (i.e., if it was the last entity in the archetype).
+        aManager.record(replacementEntity).mIndex = aEntityIndex;
+    }
+
+    // Erase the handle.
+    detail::eraseByMoveOver(mHandles, aEntityIndex);
+
+    // Erase the components.
     for(std::size_t storeId = 0; storeId != mType.size(); ++storeId)
     {
         mStores[storeId]->remove(aEntityIndex);
