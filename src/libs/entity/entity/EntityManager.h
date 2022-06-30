@@ -4,6 +4,7 @@
 #include "Entity.h"
 
 #include <algorithm>
+#include <deque>
 #include <map>
 
 #include <cstddef>
@@ -13,7 +14,7 @@ namespace ad {
 namespace ent {
 
 
-// TODO implement handle reuse
+// TODO implement reuse of handle from the free list
 class EntityManager
 {
     friend class Handle<Entity>;
@@ -38,8 +39,13 @@ private:
     template <class T_component>
     Archetype & extendArchetype(const Archetype & aArchetype);
 
+    EntityRecord & record(HandleKey aKey);
+
+    void freeHandle(HandleKey aKey);
+
     HandleKey mNextHandle;
     std::map<HandleKey, EntityRecord> mHandleMap;
+    std::deque<HandleKey> mFreedHandles;
     std::map<TypeSet, Archetype> mArchetypes;
     inline static const TypeSet gEmptyTypeSet{};
 };

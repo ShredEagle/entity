@@ -33,7 +33,7 @@ public:
 } // namespace ad
 
 
-SCENARIO("Entities manipulation.")
+SCENARIO("Adding and removing entities.")
 {
     GIVEN("An entity manager.")
     {
@@ -43,6 +43,7 @@ SCENARIO("Entities manipulation.")
         WHEN("An entity is added to the manager.")
         {
             Handle<Entity> h1 = world.addEntity();
+            REQUIRE(h1.isValid());
 
             THEN("There is one entity in the manger.")
             {
@@ -58,6 +59,10 @@ SCENARIO("Entities manipulation.")
                 THEN("The manager is empty again.")
                 {
                     CHECK(world.countLiveEntities() == 0);
+                }
+                THEN("The handle is invalidated.")
+                {
+                    CHECK_FALSE(h1.isValid());
                 }
             }
 
@@ -78,6 +83,10 @@ SCENARIO("Entities manipulation.")
                     THEN("The manager only contains the one entity.")
                     {
                         CHECK(world.countLiveEntities() == 1);
+                    }
+                    THEN("The handle to the first object invalidated.")
+                    {
+                        CHECK_FALSE(h1.isValid());
                     }
                 }
             }

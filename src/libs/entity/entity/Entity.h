@@ -2,6 +2,7 @@
 
 
 #include "Archetype.h"
+#include "HandleKey.h"
 
 #include <functional>
 #include <mutex>
@@ -12,28 +13,6 @@
 
 namespace ad {
 namespace ent {
-
-
-class HandleKey
-{
-public:
-    HandleKey() = default;
-
-    operator std::size_t () const
-    { return mIndex; }
-
-    HandleKey operator++(int /*postfix*/)
-    {
-        return HandleKey{mIndex++};
-    }
-
-private:
-    HandleKey(std::size_t aIndex) :
-        mIndex{aIndex}
-    {}
-
-    std::size_t mIndex{0};
-};
 
 
 struct EntityRecord
@@ -125,6 +104,10 @@ class Handle<Entity>
     friend class EntityManager;
 
 public:
+    /// \brief Checks whether the handle is valid, currently pointing to an Entity.
+    // TODO not sure it should exist as a standalone, as it duplicates some logic from get()
+    bool isValid() const;
+
     /// \important This handle must outlive the returned Entity.
     std::optional<Entity> get(Phase & aPhase);
 
@@ -142,6 +125,8 @@ private:
     // TODO return an EntityRecord* (or use the nested Archetype*) allowing :
     // * to test when needed.
     // * to blindly dereference when logic requires that the record be valid.
+    /// \return The EntityRecord associated with the handled entity.
+    /// The record is returned by **copy**, to prevent mutation.
     EntityRecord record() const;
 
     void updateRecord(EntityRecord aNewRecord);

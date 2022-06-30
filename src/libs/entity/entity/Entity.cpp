@@ -25,6 +25,13 @@ void Entity::erase()
 }
 
 
+bool Handle<Entity>::isValid() const
+{
+    EntityRecord current = record();
+    return current.mArchetype != nullptr;
+}
+
+
 std::optional<Entity> Handle<Entity>::get(Phase & aPhase)
 {
     EntityRecord current = record();
@@ -53,22 +60,20 @@ void Handle<Entity>::erase()
     EntityRecord rec = record();
     rec.mArchetype->remove(rec.mIndex);
 
-    rec.mArchetype = nullptr;
-    updateRecord(rec);
+    mManager.freeHandle(mKey);
 }
 
 
 EntityRecord Handle<Entity>::record() const
 {
-    // TODO implement checks that the record is still there
-    // that the generation is matching
-    return mManager.mHandleMap.at(mKey);
+    return mManager.record(mKey);
 }
 
 
 void Handle<Entity>::updateRecord(EntityRecord aNewRecord)
 {
-    mManager.mHandleMap.at(mKey) = aNewRecord;
+    // Must mutate the underlying record, so it cannot use this->record().
+    mManager.record(mKey) = aNewRecord;
 }
 
 

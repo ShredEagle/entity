@@ -5,6 +5,7 @@ set(${TARGET_NAME}_HEADERS
     Component.h
     Entity.h
     EntityManager.h
+    HandleKey.h
     Query.h
 )
 
