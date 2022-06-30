@@ -3,6 +3,8 @@
 
 #include "Archetype.h"
 
+#include <functional>
+#include <mutex>
 #include <optional>
 
 #include <cstddef>
@@ -47,8 +49,28 @@ template <class T_handled>
 class Handle; // forward
 
 
+/// \brief This class allows to stack-up the operations to be
+/// deferred until the end of the phase.
+///
 class Phase
 {
+public:
+    Phase() = default;
+
+    // Not copyable
+    Phase(const Phase &) = delete;
+    Phase & operator=(const Phase &) = delete;
+
+    ~Phase();
+
+    /// \note Thread safe, so it can be used in presence of a job system.
+    template <class F_operation>
+    void append(F_operation && aOperation);
+
+private:
+    // TODO Use better concurrency mechanism, such as lightweight mutexes or a lock-free container.
+    std::mutex mMutex;
+    std::vector<std::function<void()>> mOperations;
 };
 
 
@@ -69,6 +91,9 @@ public:
 
     template <class T_component>
     T_component & get();
+
+    /// \brief Remove the entity itself from the EntityManager.
+    void erase();
 
 private:
     Entity(
@@ -112,7 +137,9 @@ private:
     template <class T_component>
     void add(T_component aComponent);
 
-    // TODO return an EntityRecord*, allowing :
+    void erase();
+
+    // TODO return an EntityRecord* (or use the nested Archetype*) allowing :
     // * to test when needed.
     // * to blindly dereference when logic requires that the record be valid.
     EntityRecord record() const;
@@ -128,11 +155,23 @@ private:
 //
 // Implementations
 //
+
+template <class F_operation>
+void Phase::append(F_operation && aOperation)
+{
+    std::lock_guard<std::mutex> lock{mMutex};
+    mOperations.push_back(std::forward<F_operation>(aOperation));
+}
+
+
 template <class T_component>
 Entity & Entity::add(T_component aComponent)
 {
-    // TODO defer
-    mHandle.add<T_component>(aComponent);
+    mPhase.append(
+        [&handle = mHandle, component = std::move(aComponent)]
+        {
+            handle.add<T_component>(component);
+        });
     return *this;
 }
 
@@ -148,7 +187,6 @@ T_component & Entity::get()
 {
     return mRecord.mArchetype->get<T_component>(mRecord.mIndex);
 }
-
 
 
 } // namespace ent

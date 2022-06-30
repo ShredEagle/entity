@@ -35,6 +35,9 @@ public:
 
     virtual void remove(EntityIndex aSourceIndex) = 0;
 
+    /// Intended for use with tests, to ensure the consistency of an Archetype.
+    virtual ComponentId getType() = 0;
+
 
 private:
     // TODO cache the pointer instead of virtual function,
@@ -60,6 +63,8 @@ public:
     { mArray.push_back(std::move(aSource.get<T_component>(aSourceIndex))); }
 
     void remove(EntityIndex aSourceIndex) override;
+
+    ComponentId getType() override;
 
     // Client should not be able to get access to Storage instances at all
 //private:
@@ -93,6 +98,9 @@ public:
     T_component & get(EntityIndex aEntityIndex);
 
     void remove(EntityIndex aEntityIndex);
+
+    // Intended for tests
+    bool verifyConsistency();
 
     // TODO should probably not be public
     /// \brief Move an entity from this Archetype to aDestination Archetype.
@@ -143,6 +151,13 @@ void Storage<T_component>::remove(EntityIndex aSourceIndex)
 
     std::move(backIt, mArray.end(), elementIt);
     mArray.erase(backIt);
+}
+
+
+template <class T_component>
+ComponentId Storage<T_component>::getType()
+{
+    return getId<T_component>();
 }
 
 

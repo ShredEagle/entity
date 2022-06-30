@@ -24,6 +24,30 @@ std::size_t Archetype::countEntities() const
 }
 
 
+bool Archetype::verifyConsistency()
+{
+    if(mType.size() != mStores.size())
+    {
+        return false;
+    }
+
+    std::size_t entitiesCount = countEntities();
+    for(std::size_t storeId = 0; storeId != mType.size(); ++storeId)
+    {
+        if(mType[storeId] != mStores[storeId]->getType())
+        {
+            return false;
+        }
+        else if(mStores[storeId]->size() != entitiesCount)
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+
 void Archetype::move(std::size_t aEntityIndex, Archetype & aDestination)
 {
     for(std::size_t sourceStoreId = 0; sourceStoreId != mType.size(); ++sourceStoreId)

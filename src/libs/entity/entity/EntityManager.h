@@ -56,8 +56,26 @@ void Handle<Entity>::add(T_component aComponent)
 
     Archetype & targetArchetype =
         mManager.extendArchetype<T_component>(*initialRecord.mArchetype);
+
+    // The target archetype will grow by one: the size before insertion will be the inserted index.
+    EntityIndex newIndex = targetArchetype.countEntities();
     initialRecord.mArchetype->move(initialRecord.mIndex, targetArchetype);
-    EntityIndex newIndex = targetArchetype.push(std::move(aComponent));
+
+    // TODO ideally, we get rid of this test, so the implementations is as fast as possible
+    // when the component is not present,
+    // and it is suboptimal if it is already present.
+    // The problem is with the push
+    if (! initialRecord.mArchetype->has<T_component>()) [[likely]]
+    {
+        targetArchetype.push(std::move(aComponent));
+    }
+    else
+    {
+        // When the target archetype is the same as the source archetype
+        // the target archetype will not grow in size, so decrement the new index.
+        --newIndex;
+        targetArchetype.get<T_component>(newIndex) = std::move(aComponent);
+    }
 
     EntityRecord newRecord{
         .mArchetype = &targetArchetype,
