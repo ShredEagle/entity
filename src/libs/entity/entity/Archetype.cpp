@@ -58,7 +58,7 @@ void Archetype::move(std::size_t aEntityIndex, Archetype & aDestination, EntityM
     // Move the matching components from the stores of `this` archetype to the destination stores.
     for(std::size_t sourceStoreId = 0; sourceStoreId != mType.size(); ++sourceStoreId)
     {
-        for(std::size_t destinationStoreId = 0; destinationStoreId != mType.size(); ++destinationStoreId)
+        for(std::size_t destinationStoreId = 0; destinationStoreId != aDestination.mType.size(); ++destinationStoreId)
         {
             // Found matching components, move-push from source at the back of destination
             if(mType[sourceStoreId] == aDestination.mType[destinationStoreId])
