@@ -41,6 +41,9 @@ private:
     template <class T_component>
     Archetype & extendArchetype(const Archetype & aArchetype);
 
+    template <class T_component>
+    Archetype & restrictArchetype(const Archetype & aArchetype);
+
     EntityRecord & record(HandleKey aKey);
 
     void freeHandle(HandleKey aKey);
@@ -93,6 +96,33 @@ void Handle<Entity>::add(T_component aComponent)
 }
 
 
+template <class T_component>
+void Handle<Entity>::remove()
+{
+    EntityRecord initialRecord = record();
+
+    Archetype & targetArchetype =
+        mManager.restrictArchetype<T_component>(*initialRecord.mArchetype);
+
+    // The target archetype will grow by one: the size before insertion will be the inserted index.
+    EntityIndex newIndex = targetArchetype.countEntities();
+    initialRecord.mArchetype->move(initialRecord.mIndex, targetArchetype, mManager);
+
+    if (!initialRecord.mArchetype->has<T_component>()) [[unlikely]]
+    {
+        // When the target archetype is the same as the source archetype (i.e., the component was not present)
+        // the target archetype will not grow in size, so decrement the new index.
+        --newIndex;
+    }
+
+    EntityRecord newRecord{
+        .mArchetype = &targetArchetype,
+        .mIndex = newIndex,
+    };
+    updateRecord(newRecord);
+}
+
+
 inline Handle<Entity> EntityManager::addEntity()
 {
     auto & archetype = mArchetypes[gEmptyTypeSet];
@@ -108,6 +138,26 @@ inline Handle<Entity> EntityManager::addEntity()
     return Handle<Entity>{key, *this};
 }
 
+namespace detail {
+
+    template <class F_maker>
+    Archetype & makeIfAbsent(const TypeSet & aTargetTypeSet,
+                             std::map<TypeSet, Archetype> & aArchetypes,
+                             F_maker aMakeCallback)
+    {
+        if (auto found = aArchetypes.find(aTargetTypeSet);
+            found != aArchetypes.end())
+        {
+            return found->second;
+        }
+        else
+        {
+            return aArchetypes.emplace(aTargetTypeSet, aMakeCallback()).first->second;
+        }
+    }
+
+} // namespace detail
+
 
 template <class T_component>
 Archetype & EntityManager::extendArchetype(const Archetype & aArchetype)
@@ -115,16 +165,23 @@ Archetype & EntityManager::extendArchetype(const Archetype & aArchetype)
     TypeSet targetTypeSet{aArchetype.getTypeSet()};
     targetTypeSet.insert(getId<T_component>());
 
-    if (auto found = mArchetypes.find(targetTypeSet);
-        found != mArchetypes.end())
-    {
-        return found->second;
-    }
-    else
-    {
-        return mArchetypes.emplace(targetTypeSet, aArchetype.makeAdded<T_component>())
-                .first->second;
-    }
+    return detail::makeIfAbsent(targetTypeSet,
+                                mArchetypes,
+                                std::bind(&Archetype::makeExtended<T_component>,
+                                          std::cref(aArchetype)));
+}
+
+
+template <class T_component>
+Archetype & EntityManager::restrictArchetype(const Archetype & aArchetype)
+{
+    TypeSet targetTypeSet{aArchetype.getTypeSet()};
+    targetTypeSet.erase(getId<T_component>());
+
+    return detail::makeIfAbsent(targetTypeSet,
+                                mArchetypes,
+                                std::bind(&Archetype::makeRestricted<T_component>,
+                                          std::cref(aArchetype)));
 }
 
 

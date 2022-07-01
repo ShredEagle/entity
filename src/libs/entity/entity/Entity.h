@@ -66,6 +66,9 @@ public:
     Entity & add(T_component aComponent);
 
     template <class T_component>
+    Entity & remove();
+
+    template <class T_component>
     bool has();
 
     template <class T_component>
@@ -120,6 +123,9 @@ private:
     template <class T_component>
     void add(T_component aComponent);
 
+    template <class T_component>
+    void remove();
+
     void erase();
 
     // TODO return an EntityRecord* (or use the nested Archetype*) allowing :
@@ -159,6 +165,19 @@ Entity & Entity::add(T_component aComponent)
         });
     return *this;
 }
+
+
+template <class T_component>
+Entity & Entity::remove()
+{
+    mPhase.append(
+        [&handle = mHandle]
+        {
+            handle.remove<T_component>();
+        });
+    return *this;
+}
+
 
 template <class T_component>
 bool Entity::has()
