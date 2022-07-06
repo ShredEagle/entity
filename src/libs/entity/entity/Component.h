@@ -22,6 +22,8 @@ inline ComponentId getId()
 }
 
 
+// TODO A constexpr datastructure would allow some optimizations.
+// (such as not storing the query type set in a static data member.)
 using TypeSet = std::set<ComponentId>;
 
 

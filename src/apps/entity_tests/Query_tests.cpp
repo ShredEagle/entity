@@ -222,7 +222,144 @@ SCENARIO("Queries are kept up to date.")
 }
 
 
-SCENARIO("Query on multiple components.")
+SCENARIO("Removing components takes entities out of corresponding queries.")
+{
+    GIVEN("An entity manager, with an entity with components (A, B).")
+    {
+        EntityManager world;
+        Handle<Entity> h1 = world.addEntity();
+        {
+            Phase phase;
+            h1.get(phase)->add<ComponentA>({5.8})
+                .add<ComponentB>({});
+        }
+        REQUIRE(Query<ComponentA>{world}.countMatches() == 1);
+
+        WHEN("Component (A) is removed from the entity.")
+        {
+            {
+                Phase phase;
+                h1.get(phase)->remove<ComponentA>();
+            }
+
+            THEN("The entity does not match queries on (A).")
+            {
+                Query<ComponentA> qA{world};
+                CHECK(qA.countMatches() == 0);
+            }
+        }
+
+        WHEN("Component (C) is added while component (A) is removed from the entity.")
+        {
+            {
+                Phase phase;
+                h1.get(phase)->add<ComponentC>({})
+                    .remove<ComponentA>();
+            }
+
+            THEN("The entity does not match queries on (A).")
+            {
+                Query<ComponentA> qA{world};
+                CHECK(qA.countMatches() == 0);
+            }
+        }
+
+        WHEN("Component (C) is added, then component (A) is removed from the entity.")
+        {
+            {
+                Phase phase;
+                h1.get(phase)->add<ComponentC>({});
+            }
+
+            {
+                Phase phase;
+                h1.get(phase)->remove<ComponentA>();
+            }
+
+            THEN("The entity does not match queries on (A).")
+            {
+                Query<ComponentA> qA{world};
+                CHECK(qA.countMatches() == 0);
+            }
+        }
+    }
+}
+
+
+SCENARIO("Queries are updated with new matching archetypes.")
+{
+    GIVEN("An entity manager, with an entity with components (A, B).")
+    {
+        EntityManager world;
+        Handle<Entity> h1 = world.addEntity();
+        {
+            Phase phase;
+            h1.get(phase)->add<ComponentA>({5.8})
+                .add<ComponentB>({});
+        }
+
+        GIVEN("A query on component (A).")
+        {
+            using A = ComponentA;
+            Query<A> qA{world};
+            REQUIRE(qA.countMatches() == 1);
+
+            WHEN("Component (C) is added on the entity (a new matching archetype, by extension).")
+            {
+                {
+                    Phase phase;
+                    h1.get(phase)->add<ComponentC>({});
+                }
+
+                THEN("The query still matches the entity.")
+                {
+                    REQUIRE(qA.countMatches() == 1);
+                }
+
+                WHEN("Component (A) is removed from the entity.")
+                {
+                    {
+                        Phase phase;
+                        h1.get(phase)->remove<ComponentA>();
+                    }
+
+                    THEN("The query does not match the entity anymore.")
+                    {
+                        REQUIRE(qA.countMatches() == 0);
+                    }
+                }
+            }
+
+            WHEN("Component (B) is removed from the entity (a new matching archetype, by restriction).")
+            {
+                {
+                    Phase phase;
+                    h1.get(phase)->remove<ComponentB>();
+                }
+
+                THEN("The query still matches the entity.")
+                {
+                    REQUIRE(qA.countMatches() == 1);
+                }
+
+                WHEN("Component (A) is removed from the entity.")
+                {
+                    {
+                        Phase phase;
+                        h1.get(phase)->remove<ComponentA>();
+                    }
+
+                    THEN("The query does not match the entity anymore.")
+                    {
+                        REQUIRE(qA.countMatches() == 0);
+                    }
+                }
+            }
+        }
+    }
+}
+
+SCENARIO("Queries on multiple components.")
 {
     GIVEN("An entity manager with 3 entities.")
     {
@@ -270,6 +407,79 @@ SCENARIO("Query on multiple components.")
                 THEN("query (A) contains 3 entities.")
                 {
                     REQUIRE(qA.countMatches() == 3);
+                    REQUIRE(qAB.countMatches() == 0);
+                    REQUIRE(qAC.countMatches() == 0);
+                    REQUIRE(qABC.countMatches() == 0);
+                }
+
+                WHEN("A component (B) is added to the two first entities.")
+                {
+                    {
+                        Phase phase;
+                        entities[0].get(phase)->add<ComponentB>({""});
+                        entities[1].get(phase)->add<ComponentB>({""});
+                    }
+
+                    THEN("query (A) contains 3 entities, query (AB) contains 2.")
+                    {
+                        REQUIRE(qA.countMatches() == 3);
+                        REQUIRE(qAB.countMatches() == 2);
+                        REQUIRE(qAC.countMatches() == 0);
+                        REQUIRE(qABC.countMatches() == 0);
+                    }
+
+                    WHEN("A component (C) is added to the two last entities,"
+                         " while (A) is removed from the middle.")
+                    {
+                        {
+                            Phase phase;
+                            entities[1].get(phase)
+                                ->add<ComponentC>({})
+                                .remove<ComponentA>();
+                            entities[2].get(phase)->add<ComponentC>({});
+                        }
+
+                        THEN("query (A) contains 2 entities, query (AB) contains 1,"
+                             "query (AC) contains 1.")
+                        {
+                            REQUIRE(qA.countMatches() == 2);
+                            REQUIRE(qAB.countMatches() == 1);
+                            REQUIRE(qAC.countMatches() == 1);
+                            REQUIRE(qABC.countMatches() == 0);
+                        }
+
+                        WHEN("A component (A) is put back on the second entity.")
+                        {
+                            {
+                                Phase phase;
+                                entities[1].get(phase)->add<ComponentA>({a[1]});
+                            }
+
+                            THEN("query (A) contains 3 entities, query (AB) contains 2,"
+                                 "query (AC) contains 2, query (ABC) contains 1.")
+                            {
+                                REQUIRE(qA.countMatches() == 3);
+                                REQUIRE(qAB.countMatches() == 2);
+                                REQUIRE(qAC.countMatches() == 2);
+                                REQUIRE(qABC.countMatches() == 1);
+                            }
+                        }
+                    }
+                }
+            }
+
+            WHEN("A component (C) is added on each entity.")
+            {
+                {
+                    Phase phase;
+                    entities[0].get(phase)->add<ComponentC>({});
+                    entities[1].get(phase)->add<ComponentC>({});
+                    entities[2].get(phase)->add<ComponentC>({});
+                }
+
+                THEN("Queries match no entities.")
+                {
+                    REQUIRE(qA.countMatches() == 0);
                     REQUIRE(qAB.countMatches() == 0);
                     REQUIRE(qAC.countMatches() == 0);
                     REQUIRE(qABC.countMatches() == 0);

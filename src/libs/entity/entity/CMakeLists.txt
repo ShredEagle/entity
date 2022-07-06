@@ -7,6 +7,8 @@ set(${TARGET_NAME}_HEADERS
     EntityManager.h
     HandleKey.h
     Query.h
+
+    detail/QueryBackend.h
 )
 
 set(${TARGET_NAME}_SOURCES

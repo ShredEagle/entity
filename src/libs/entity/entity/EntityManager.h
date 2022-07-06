@@ -2,6 +2,7 @@
 
 #include "Archetype.h"
 #include "Entity.h"
+#include "entity/detail/QueryBackend.h"
 
 #include <algorithm>
 #include <deque>
@@ -44,14 +45,24 @@ private:
     template <class T_component>
     Archetype & restrictArchetype(const Archetype & aArchetype);
 
+    template <class F_maker>
+    Archetype & makeArchetypeIfAbsent(const TypeSet & aTargetTypeSet, F_maker aMakeCallback);
+
     EntityRecord & record(HandleKey aKey);
 
     void freeHandle(HandleKey aKey);
 
+    template <class... VT_components>
+    detail::QueryBackend<VT_components...> * getQueryBackend();
+
+    // TODO Refactor with a fewer higher level classes, this is turning into a super class.
     HandleKey mNextHandle;
     std::map<HandleKey, EntityRecord> mHandleMap;
     std::deque<HandleKey> mFreedHandles;
     std::map<TypeSet, Archetype> mArchetypes;
+
+    std::map<TypeSet, std::unique_ptr<detail::QueryBackendBase>> mQueryBackends;
+
     inline static const TypeSet gEmptyTypeSet{};
 };
 
@@ -138,26 +149,6 @@ inline Handle<Entity> EntityManager::addEntity()
     return Handle<Entity>{key, *this};
 }
 
-namespace detail {
-
-    template <class F_maker>
-    Archetype & makeIfAbsent(const TypeSet & aTargetTypeSet,
-                             std::map<TypeSet, Archetype> & aArchetypes,
-                             F_maker aMakeCallback)
-    {
-        if (auto found = aArchetypes.find(aTargetTypeSet);
-            found != aArchetypes.end())
-        {
-            return found->second;
-        }
-        else
-        {
-            return aArchetypes.emplace(aTargetTypeSet, aMakeCallback()).first->second;
-        }
-    }
-
-} // namespace detail
-
 
 template <class T_component>
 Archetype & EntityManager::extendArchetype(const Archetype & aArchetype)
@@ -165,10 +156,9 @@ Archetype & EntityManager::extendArchetype(const Archetype & aArchetype)
     TypeSet targetTypeSet{aArchetype.getTypeSet()};
     targetTypeSet.insert(getId<T_component>());
 
-    return detail::makeIfAbsent(targetTypeSet,
-                                mArchetypes,
-                                std::bind(&Archetype::makeExtended<T_component>,
-                                          std::cref(aArchetype)));
+    return makeArchetypeIfAbsent(targetTypeSet,
+                                 std::bind(&Archetype::makeExtended<T_component>,
+                                           std::cref(aArchetype)));
 }
 
 
@@ -178,10 +168,51 @@ Archetype & EntityManager::restrictArchetype(const Archetype & aArchetype)
     TypeSet targetTypeSet{aArchetype.getTypeSet()};
     targetTypeSet.erase(getId<T_component>());
 
-    return detail::makeIfAbsent(targetTypeSet,
-                                mArchetypes,
-                                std::bind(&Archetype::makeRestricted<T_component>,
-                                          std::cref(aArchetype)));
+    return makeArchetypeIfAbsent(targetTypeSet,
+                                 std::bind(&Archetype::makeRestricted<T_component>,
+                                           std::cref(aArchetype)));
+}
+
+
+template <class F_maker>
+Archetype & EntityManager::makeArchetypeIfAbsent(const TypeSet & aTargetTypeSet,
+                                                 F_maker aMakeCallback)
+{
+    if (auto found = mArchetypes.find(aTargetTypeSet);
+        found != mArchetypes.end())
+    {
+        return found->second;
+    }
+    else
+    {
+        Archetype & inserted = mArchetypes.emplace(aTargetTypeSet, aMakeCallback()).first->second;
+        // Ask each QueryBackend if it is interested in the new archetype.
+        for (auto & [_typeset, queryBackend] : mQueryBackends)
+        {
+            queryBackend->pushIfMatches(aTargetTypeSet, inserted);
+        }
+        return inserted;
+    }
+}
+
+
+template <class... VT_components>
+detail::QueryBackend<VT_components...> * EntityManager::getQueryBackend()
+{
+    TypeSet backendKey = getTypeSet<VT_components...>();
+    if (auto found = mQueryBackends.find(backendKey);
+        found != mQueryBackends.end())
+    {
+        return static_cast<detail::QueryBackend<VT_components...> *>(found->second.get());
+    }
+    else
+    {
+        auto insertion = mQueryBackends.emplace(
+            backendKey,
+            std::make_unique<detail::QueryBackend<VT_components...>>(mArchetypes.begin(),
+                                                                     mArchetypes.end()));
+        return static_cast<detail::QueryBackend<VT_components...> *>(insertion.first->second.get());
+    }
 }
 
 
