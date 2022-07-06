@@ -2,6 +2,7 @@
 
 
 #include <string>
+#include <vector>
 
 
 struct ComponentA
@@ -15,3 +16,13 @@ struct ComponentB
     std::string str;
 };
 
+
+struct ComponentC
+{
+    std::vector<int> vec;
+};
+
+struct ComponentEmpty
+{
+    // empty
+};

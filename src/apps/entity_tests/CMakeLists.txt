@@ -7,6 +7,7 @@ set(${TARGET_NAME}_HEADERS
 
 set(${TARGET_NAME}_SOURCES
     Phase_tests.cpp
+    Query_tests.cpp
     Usage_tests.cpp
     main.cpp
 )

@@ -123,6 +123,10 @@ public:
     void pushKey(HandleKey aKey)
     { mHandles.push_back(aKey); }
 
+    // TODO should not be public, this is an implementation detail for queries
+    template <class T_component>
+    T_component * begin();
+
 private:
 
     //std::size_t mSize{0};
@@ -271,6 +275,20 @@ EntityIndex Archetype::push(T_component aComponent)
     }
 
     throw std::logic_error("Archetype does not have requested component.");
+}
+
+
+template <class T_component>
+T_component * Archetype::begin()
+{
+    for(std::size_t storeId = 0; storeId != mType.size(); ++storeId)
+    {
+        if(mType[storeId] == getId<T_component>())
+        {
+            return mStores[storeId]->as<T_component>().mArray.data();
+        }
+    }
+    throw std::logic_error{"Archetype does not contain requested component."};
 }
 
 

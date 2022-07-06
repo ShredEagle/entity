@@ -123,6 +123,8 @@ private:
     template <class T_component>
     void add(T_component aComponent);
 
+    // TODO emplace() which construct the components by forwarding arguments.
+
     template <class T_component>
     void remove();
 
