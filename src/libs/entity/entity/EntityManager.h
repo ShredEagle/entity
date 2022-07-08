@@ -61,7 +61,12 @@ private:
     std::deque<HandleKey> mFreedHandles;
     std::map<TypeSet, Archetype> mArchetypes;
 
-    std::map<TypeSet, std::unique_ptr<detail::QueryBackendBase>> mQueryBackends;
+    // TODO Ad 2022/07/08: Replace the TypeSequence by a TypeSet.
+    // This will imply that all queries on the same set of components,
+    // **independently of the order**, will share the same QueryBackend.
+    // The main complication will be that the Query will need to statically sort the components
+    // to instantiate their pointer to backend.
+    std::map<TypeSequence, std::unique_ptr<detail::QueryBackendBase>> mQueryBackends;
 
     inline static const TypeSet gEmptyTypeSet{};
 };
@@ -187,7 +192,7 @@ Archetype & EntityManager::makeArchetypeIfAbsent(const TypeSet & aTargetTypeSet,
     {
         Archetype & inserted = mArchetypes.emplace(aTargetTypeSet, aMakeCallback()).first->second;
         // Ask each QueryBackend if it is interested in the new archetype.
-        for (auto & [_typeset, queryBackend] : mQueryBackends)
+        for (auto & [_types, queryBackend] : mQueryBackends)
         {
             queryBackend->pushIfMatches(aTargetTypeSet, inserted);
         }
@@ -199,11 +204,12 @@ Archetype & EntityManager::makeArchetypeIfAbsent(const TypeSet & aTargetTypeSet,
 template <class... VT_components>
 detail::QueryBackend<VT_components...> * EntityManager::getQueryBackend()
 {
-    TypeSet backendKey = getTypeSet<VT_components...>();
+    TypeSequence backendKey = getTypeSequence<VT_components...>();
+    detail::QueryBackendBase * backend;
     if (auto found = mQueryBackends.find(backendKey);
         found != mQueryBackends.end())
     {
-        return static_cast<detail::QueryBackend<VT_components...> *>(found->second.get());
+        backend = found->second.get();
     }
     else
     {
@@ -211,8 +217,13 @@ detail::QueryBackend<VT_components...> * EntityManager::getQueryBackend()
             backendKey,
             std::make_unique<detail::QueryBackend<VT_components...>>(mArchetypes.begin(),
                                                                      mArchetypes.end()));
-        return static_cast<detail::QueryBackend<VT_components...> *>(insertion.first->second.get());
+        backend = insertion.first->second.get();
     }
+
+    // Assert that the underlying object is of the expected dynamic type.
+    assert(dynamic_cast<detail::QueryBackend<VT_components...> *>(backend) != nullptr);
+
+    return static_cast<detail::QueryBackend<VT_components...> *>(backend);
 }
 
 

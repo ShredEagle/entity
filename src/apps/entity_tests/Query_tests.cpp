@@ -222,6 +222,61 @@ SCENARIO("Queries are kept up to date.")
 }
 
 
+SCENARIO("Queries can be instantiated with different components ordering.")
+{
+    GIVEN("An entity manager, with an entity with components (A, B, C).")
+    {
+        using A = ComponentA;
+        using B = ComponentB;
+        using C = ComponentC;
+
+        EntityManager world;
+        const double valueA = 5.8;
+
+        Handle<Entity> h1 = world.addEntity();
+        {
+            Phase phase;
+            h1.get(phase)->add<A>({valueA})
+                .add<B>({})
+                .add<C>({});
+        }
+
+        WHEN("A query on (A, B, C) is instantiated.")
+        {
+            Query<A, B, C>  qABC{world};
+            REQUIRE(qABC.countMatches() == 1);
+
+            WHEN("A query on (C, B, A) is instantiated.")
+            {
+                Query<C, B, A>  qCBA{world};
+
+                THEN("Both queries match the entity.")
+                {
+                    CHECK(qABC.countMatches() == 1);
+                    CHECK(qCBA.countMatches() == 1);
+                }
+
+                WHEN("The component A is written through the first query.")
+                {
+                    qABC.each([&](A & a, B &, C &)
+                    {
+                        a.d *= 2;
+                    });
+
+                    THEN("The change in value is visible to the second query.")
+                    {
+                        qCBA.each([&](C &, B &, A & a)
+                        {
+                            CHECK(a.d == 2 * valueA);
+                        });
+                    }
+                }
+            }
+        }
+    }
+}
+
+
 SCENARIO("Removing components takes entities out of corresponding queries.")
 {
     GIVEN("An entity manager, with an entity with components (A, B).")
