@@ -37,7 +37,11 @@ public:
         MatchedArchetype(Archetype * aArchetype);
 
         Archetype * mArchetype;
-        std::tuple<VT_components *...> mComponents;
+        // IMPORTANT: Cannot cache the pointer to components' storage
+        // because the storage is currently a vector (i.e. prone to relocation)
+        // This would also complicate the frame-state implementation.
+        //std::tuple<VT_components *...> mComponents;
+        std::tuple<StorageIndex<VT_components>...> mComponentIndices;
     };
 
     using AddedEntityCallback = std::function<void(VT_components &...)>;
@@ -56,13 +60,26 @@ public:
 };
 
 
+/// \brief Invoke a callback on a matched archetype, for a given entity in the archetype.
+template <class... VT_components, class F_callback>
+void invoke(F_callback aCallback,
+            const typename QueryBackend<VT_components...>::MatchedArchetype & aMatch,
+            EntityIndex aIndexInArchetype)
+{
+    aCallback(aMatch.mArchetype->getStorage(
+                std::get<StorageIndex<VT_components>>(aMatch.mComponentIndices))
+                    .mArray[aIndexInArchetype]...);
+}
+
+
 //
 // Implementations
 //
+
 template <class... VT_components>
 QueryBackend<VT_components...>::MatchedArchetype::MatchedArchetype(Archetype * aArchetype) :
     mArchetype{aArchetype},
-    mComponents{mArchetype->begin<VT_components>()...}
+    mComponentIndices{mArchetype->getStoreIndex<VT_components>()...}
 {}
 
 
@@ -105,7 +122,7 @@ void QueryBackend<VT_components...>::signalEntityAdded(Handle<Entity> aEntity, c
 
     for(auto & callback : mAddListeners)
     {
-        callback(std::get<VT_components *>(found->mComponents)[aRecord.mIndex]...);
+        invoke<VT_components...>(callback, *found, aRecord.mIndex);
     }
 }
 

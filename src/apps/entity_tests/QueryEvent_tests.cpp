@@ -29,6 +29,7 @@ SCENARIO("Queries are notified of entities added.")
             queryA.onAddEntity([&](ComponentA & a)
                     {
                         ++addCount;
+                        CHECK(a.d == valA);
                     });
 
             REQUIRE(addCount == 0);

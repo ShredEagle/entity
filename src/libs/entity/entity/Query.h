@@ -27,7 +27,7 @@ public:
 
     /// \brief Iteration over all entities matching the query.
     template <class F_function>
-    void each(F_function aCallback);
+    void each(F_function && aCallback);
 
     template <class F_function>
     void onAddEntity(F_function && aCallback);
@@ -63,13 +63,13 @@ std::size_t Query<VT_components...>::countMatches() const
 
 template <class... VT_components>
 template <class F_function>
-void Query<VT_components...>::each(F_function aCallback)
+void Query<VT_components...>::each(F_function && aCallback)
 {
     for(const auto & match : matches())
     {
         for(std::size_t entityId = 0; entityId != match.mArchetype->countEntities(); ++entityId)
         {
-            aCallback(std::get<VT_components *>(match.mComponents)[entityId]...);
+            detail::invoke<VT_components...>(std::forward<F_function>(aCallback), match, entityId);
         }
     }
 }

@@ -73,6 +73,32 @@ public:
 };
 
 
+// Note: Sadly, this does not seem to be enough to forward across function templates
+//template <class T_component>
+//using StorageIndex = std::size_t;
+
+/// \brief This class allows to encapsulate the static component type
+/// alongside the index of the storage for this component (in an Archetype).
+///
+/// This is notably useful to store "typed indices" in the tuple used by the QueryBackend.
+template <class T_component>
+struct StorageIndex
+{
+public:
+    /*implicit*/ StorageIndex(std::size_t aIndex) :
+        mIndex{aIndex}
+    {}
+
+    operator std::size_t & ()
+    { return mIndex; }
+
+    operator std::size_t () const
+    { return mIndex; }
+
+private:
+    std::size_t mIndex;
+};
+
 class EntityManager; //forward
 
 // TODO Establish what it means for an Archetype to be constant:
@@ -125,7 +151,10 @@ public:
 
     // TODO should not be public, this is an implementation detail for queries
     template <class T_component>
-    T_component * begin();
+    StorageIndex<T_component> getStoreIndex();
+
+    template <class T_component>
+    Storage<T_component> & getStorage(StorageIndex<T_component> aComponentIndex);
 
 private:
     //std::size_t mSize{0};
@@ -278,16 +307,23 @@ EntityIndex Archetype::push(T_component aComponent)
 
 
 template <class T_component>
-T_component * Archetype::begin()
+StorageIndex<T_component> Archetype::getStoreIndex()
 {
     for(std::size_t storeId = 0; storeId != mType.size(); ++storeId)
     {
         if(mType[storeId] == getId<T_component>())
         {
-            return mStores[storeId]->as<T_component>().mArray.data();
+            return storeId;
         }
     }
     throw std::logic_error{"Archetype does not contain requested component."};
+}
+
+
+template <class T_component>
+Storage<T_component> & Archetype::getStorage(StorageIndex<T_component> aComponentIndex)
+{
+    return mStores[aComponentIndex]->template as<T_component>();
 }
 
 
