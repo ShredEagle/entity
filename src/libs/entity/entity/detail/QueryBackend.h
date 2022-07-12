@@ -1,6 +1,7 @@
 #pragma once
 
 
+#include "../Entity.h"
 #include "../Archetype.h"
 
 #include <algorithm>
@@ -17,6 +18,7 @@ public:
     virtual ~QueryBackendBase() = default;
 
     virtual void pushIfMatches(const TypeSet & aCandidateTypeSet, Archetype & aCandidate) = 0;
+    virtual void signalEntityAdded(Handle<Entity> aEntity, const EntityRecord & aRecord) = 0;
 };
 
 
@@ -38,14 +40,19 @@ public:
         std::tuple<VT_components *...> mComponents;
     };
 
+    using AddedEntityCallback = std::function<void(VT_components &...)>;
+
     template <class T_pairIterator>
     QueryBackend(T_pairIterator aFirst, T_pairIterator aLast);
 
     void pushIfMatches(const TypeSet & aCandidateTypeSet, Archetype & aCandidate) final;
 
+    void signalEntityAdded(Handle<Entity> aEntity, const EntityRecord & aRecord) final;
+
     static const TypeSet & GetTypeSet();
 
     std::vector<MatchedArchetype> mMatchingArchetypes;
+    std::vector<AddedEntityCallback> mAddListeners;
 };
 
 
@@ -79,6 +86,26 @@ void QueryBackend<VT_components...>::pushIfMatches(const TypeSet & aCandidateTyp
                      GetTypeSet().begin(), GetTypeSet().end()))
     {
         mMatchingArchetypes.push_back(&aCandidate);
+    }
+}
+
+
+template <class... VT_components>
+void QueryBackend<VT_components...>::signalEntityAdded(Handle<Entity> aEntity, const EntityRecord & aRecord)
+{
+    auto found =
+        std::find_if(mMatchingArchetypes.begin(),
+                     mMatchingArchetypes.end(),
+                     [&aRecord](const auto & aMatch) -> bool
+                     {
+                       return aMatch.mArchetype == aRecord.mArchetype;
+                     });
+    assert(found != mMatchingArchetypes.end());
+    assert(aRecord.mIndex < found->mArchetype->countEntities());
+
+    for(auto & callback : mAddListeners)
+    {
+        callback(std::get<VT_components *>(found->mComponents)[aRecord.mIndex]...);
     }
 }
 

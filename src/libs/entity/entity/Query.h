@@ -29,6 +29,9 @@ public:
     template <class F_function>
     void each(F_function aCallback);
 
+    template <class F_function>
+    void onAddEntity(F_function && aCallback);
+
 private:
     const std::vector<
         typename detail::QueryBackend<VT_components...>::MatchedArchetype> & matches() const
@@ -69,6 +72,14 @@ void Query<VT_components...>::each(F_function aCallback)
             aCallback(std::get<VT_components *>(match.mComponents)[entityId]...);
         }
     }
+}
+
+
+template <class... VT_components>
+template <class F_function>
+void Query<VT_components...>::onAddEntity(F_function && aCallback)
+{
+    mSharedBackend->mAddListeners.push_back(std::forward<F_function>(aCallback));
 }
 
 

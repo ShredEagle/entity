@@ -16,6 +16,7 @@ namespace ent {
 
 
 // TODO implement reuse of handle from the free list
+// TODO implement handle free list hosted implicitly in a vector of handles
 class EntityManager
 {
     friend class Archetype;
@@ -54,6 +55,13 @@ private:
 
     template <class... VT_components>
     detail::QueryBackend<VT_components...> * getQueryBackend();
+
+    // TODO This could be massively optimized by keeping a graph of transformations on the
+    // archetypes, and storing the backend difference along the edges.
+    // Basically, the edge would cache this information.
+    /// \brief Return all QueryBackends that are present i aCompared, but not in aReference.
+    std::vector<detail::QueryBackendBase *>
+    getExtraQueryBackends(const Archetype & aCompared, const Archetype & aReference) const;
 
     // TODO Refactor with a fewer higher level classes, this is turning into a super class.
     HandleKey mNextHandle;
@@ -109,6 +117,14 @@ void Handle<Entity>::add(T_component aComponent)
         .mIndex = newIndex,
     };
     updateRecord(newRecord);
+
+    // Notify the query backends that match target archetype but not source
+    // that a new entity was added.
+    auto difference = mManager.getExtraQueryBackends(targetArchetype, *initialRecord.mArchetype);
+    for (const auto & newQuery : difference)
+    {
+        newQuery->signalEntityAdded(*this, newRecord);
+    }
 }
 
 

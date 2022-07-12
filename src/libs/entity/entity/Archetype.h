@@ -128,7 +128,6 @@ public:
     T_component * begin();
 
 private:
-
     //std::size_t mSize{0};
     // TODO cache typeset, or even better only have a typeset, so the components are ordered
     //TypeSet mTypeSet;
