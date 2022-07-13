@@ -287,3 +287,81 @@ SCENARIO("The events are only listened as long as the query is alive.")
         }
     }
 }
+
+
+SCENARIO("Events are triggered for queries matching several components.")
+{
+    GIVEN("An entity manager with an entity.")
+    {
+        EntityManager world;
+        Handle<Entity> h1 = world.addEntity();
+
+        GIVEN("A query on component (A, B), with listener on added and removed entities.")
+        {
+            auto queryAB = std::make_unique<Query<ComponentA, ComponentB>>(world);
+            std::size_t addCount = 0;
+            std::size_t removeCount = 0;
+            queryAB->onAddEntity([&](ComponentA &, ComponentB &)
+            {
+                ++addCount;
+            });
+
+            queryAB->onRemoveEntity([&](ComponentA &, ComponentB &)
+            {
+                ++removeCount;
+            });
+
+            WHEN("A component (A) is added to the entity.")
+            {
+                {
+                    Phase phase;
+                    h1.get(phase)->add<ComponentA>({});
+                }
+                THEN("The listener are not invoked.")
+                {
+                    CHECK(addCount == 0);
+                    CHECK(removeCount == 0);
+                }
+
+                WHEN("A component (B) is added to the entity.")
+                {
+                    {
+                        Phase phase;
+                        h1.get(phase)->add<ComponentB>({});
+                    }
+                    THEN("The add listener is invoked.")
+                    {
+                        CHECK(addCount == 1);
+                        CHECK(removeCount == 0);
+                    }
+
+                    WHEN("Component (A) is removed from the entity.")
+                    {
+                        {
+                            Phase phase;
+                            h1.get(phase)->remove<ComponentA>();
+                        }
+                        THEN("The remove listener is invoked.")
+                        {
+                            CHECK(addCount == 1);
+                            CHECK(removeCount == 1);
+                        }
+                    }
+
+                    WHEN("Component (B) is removed from the entity.")
+                    {
+                        {
+                            Phase phase;
+                            h1.get(phase)->remove<ComponentB>();
+                        }
+                        THEN("The remove listener is invoked.")
+                        {
+                            CHECK(addCount == 1);
+                            CHECK(removeCount == 1);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
