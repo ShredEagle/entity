@@ -11,8 +11,6 @@ using namespace ad;
 using namespace ad::ent;
 
 
-// TODO notification of pre-existing entities.
-
 SCENARIO("Queries are notified of entities added.")
 {
     GIVEN("An entity manager with an entity.")
@@ -360,6 +358,53 @@ SCENARIO("Events are triggered for queries matching several components.")
                             CHECK(removeCount == 1);
                         }
                     }
+                }
+            }
+        }
+    }
+}
+
+
+
+// Ad 2022/07/13: This test is disabled, because at the moment we decided not to notify of
+// pre-existing entities when the listener is installed.
+SCENARIO("Existing entities matching a query are signaled when registering a listener.", "[.]")
+{
+    GIVEN("An entity manager with an entity.")
+    {
+        EntityManager world;
+        Handle<Entity> h1 = world.addEntity();
+
+        const double valA = 16;
+        const std::string valB = "bee";
+
+        GIVEN("The entity has components (A, B), and a query on (A, B).")
+        {
+            {
+                Phase phase;
+                h1.get(phase)->add<ComponentA>({valA})
+                    .add<ComponentB>({valB});
+            }
+
+            Query<ComponentA, ComponentB> queryAB{world};
+
+            WHEN("Listener on added entity is installed.")
+            {
+                std::size_t addCount = 0;
+
+                queryAB.onAddEntity([&](ComponentA & a, ComponentB & b)
+                {
+                    ++addCount;
+                    THEN("The values of the components are as set.")
+                    {
+                        CHECK(a.d == valA + 1);
+                        CHECK(b.str == valB);
+                    }
+                });
+
+                THEN("The listened is invoked.")
+                {
+                    CHECK(addCount == 1);
                 }
             }
         }

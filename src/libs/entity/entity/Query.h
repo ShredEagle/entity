@@ -29,6 +29,11 @@ public:
     template <class F_function>
     void each(F_function && aCallback);
 
+    // TODO Ad 2022/07/13: Should the query notify of the potential existence of entities
+    // at the moment a EntityAdded listener is installed?
+    // It was decided not to do it at the moment, revising the decision if the need arises.
+    // An issue would be when a listener does mutating operations such as adding/removing
+    // entities or components, which phase should be used?
     template <class F_function>
     void onAddEntity(F_function && aCallback);
 
