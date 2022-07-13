@@ -4,15 +4,9 @@ from conans import ConanFile, tools
 from conan.tools.cmake import CMake, CMakeToolchain
 
 
-class GraphicsTestConan(ConanFile):
+class EntityTestConan(ConanFile):
     settings = "os", "compiler", "build_type", "arch"
-    generators = "cmake_paths", "cmake_find_package", "CMakeToolchain"
-
-
-    def generate(self):
-        tc = CMakeToolchain(self)
-        tc.variables["CMAKE_PROJECT_PackageTest_INCLUDE"] = "${CMAKE_BINARY_DIR}/conan_paths.cmake"
-        tc.generate()
+    generators = "CMakeDeps", "CMakeToolchain"
 
 
     def build(self):

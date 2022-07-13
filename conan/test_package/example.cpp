@@ -1,9 +1,10 @@
-// Commented-out to trigger a compilation error: requires manual implementation of a custom test
-//#include <cstdlib>
+#include <entity/EntityManager.h>
+
+#include <cstdlib>
 
 
 int main()
 {
-    // TODO implement
-    return EXIT_FAILURE;
+    ad::ent::EntityManager world;
+    return EXIT_SUCCESS;
 }
