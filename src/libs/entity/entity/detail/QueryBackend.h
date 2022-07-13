@@ -27,6 +27,38 @@ public:
 // There should be only one instance (for a given VT_components...) per EntityManager.
 // This allows to cache queries (all identicaly queries share the single backend instance),
 // and the EntityManager is responsible for keeping the backends up to date.
+
+// TODO Ad 2022/07/13: FRAMESAVE Ensure the Listening dtor of a discarded frame does not
+// stop the listening in active frames! (i.e. the opposite of the usual problem, we have to make
+// sure the effects are not accross frames). Yet the copy in a new frame should be able to delete
+// in the new frame...
+// TODO Ad 2022/07/13: Replace with Handy guard, e.g. using Listening = Guard;
+class [[nodiscard]] Listening
+{
+public:
+    template <class F_guard>
+    explicit Listening(F_guard && aGuard) :
+        mGuard{std::make_unique<std::function<void()>>(std::forward<F_guard>(aGuard))}
+    {}
+
+    Listening(const Listening &) = delete;
+    Listening & operator=(const Listening &) = delete;
+
+    Listening(Listening &&) = default;
+    Listening & operator=(Listening &&) = default;
+
+    ~Listening()
+    {
+        if(mGuard)
+        {
+            (*mGuard)();
+        }
+    }
+private:
+    std::unique_ptr<std::function<void()>> mGuard;
+};
+
+
 template <class... VT_components>
 class QueryBackend : public QueryBackendBase
 {
@@ -49,6 +81,9 @@ public:
     template <class T_pairIterator>
     QueryBackend(T_pairIterator aFirst, T_pairIterator aLast);
 
+    template <class F_function>
+    Listening listenEntityAdded(F_function && aCallback);
+
     void pushIfMatches(const TypeSet & aCandidateTypeSet, Archetype & aCandidate) final;
 
     void signalEntityAdded(Handle<Entity> aEntity, const EntityRecord & aRecord) final;
@@ -56,7 +91,8 @@ public:
     static const TypeSet & GetTypeSet();
 
     std::vector<MatchedArchetype> mMatchingArchetypes;
-    std::vector<AddedEntityCallback> mAddListeners;
+    // A list, because we can delete in the middle, and it should not invalidate other iterators.
+    std::list<AddedEntityCallback> mAddListeners;
 };
 
 
@@ -92,6 +128,19 @@ QueryBackend<VT_components...>::QueryBackend(T_pairIterator aFirst, T_pairIterat
         auto & [typeSet, archetype] = *aFirst;
         pushIfMatches(typeSet, archetype);
     }
+}
+
+
+template <class... VT_components>
+template <class F_function>
+Listening QueryBackend<VT_components...>::listenEntityAdded(F_function && aCallback)
+{
+    auto inserted = mAddListeners.emplace(mAddListeners.end(),
+                                          std::forward<F_function>(aCallback));
+    return Listening{[inserted, this]()
+        {
+            mAddListeners.erase(inserted);
+        }};
 }
 
 

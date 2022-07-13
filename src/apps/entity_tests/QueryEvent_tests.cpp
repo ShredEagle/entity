@@ -90,3 +90,51 @@ SCENARIO("Queries are notified of entities added.")
     }
 }
 
+
+SCENARIO("The events are only listened as long as the query is alive.")
+{
+    GIVEN("An entity manager with an entity.")
+    {
+        EntityManager world;
+        Handle<Entity> h1 = world.addEntity();
+
+        GIVEN("A query on component (A), with a listener on added entities.")
+        {
+            auto queryA = std::make_unique<Query<ComponentA>>(world);
+            std::size_t addCount = 0;
+            queryA->onAddEntity([&](ComponentA &)
+            {
+                ++addCount;
+            });
+
+            WHEN("A component (A) is added to the entity.")
+            {
+                {
+                    Phase phase;
+                    h1.get(phase)->add<ComponentA>({});
+                }
+                THEN("The listener was invoked.")
+                {
+                    CHECK(addCount == 1);
+                }
+            }
+
+            WHEN("The query is destructed.")
+            {
+                queryA = nullptr;
+
+                WHEN("A component (A) is added to the entity.")
+                {
+                    {
+                        Phase phase;
+                        h1.get(phase)->add<ComponentA>({});
+                    }
+                    THEN("The listener was not invoked.")
+                    {
+                        CHECK(addCount == 0);
+                    }
+                }
+            }
+        }
+    }
+}

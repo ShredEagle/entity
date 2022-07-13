@@ -38,6 +38,7 @@ private:
     { return mSharedBackend->mMatchingArchetypes; }
 
     detail::QueryBackend<VT_components...>* mSharedBackend;
+    std::vector<detail::Listening> mActiveListenings;
 };
 
 
@@ -79,7 +80,8 @@ template <class... VT_components>
 template <class F_function>
 void Query<VT_components...>::onAddEntity(F_function && aCallback)
 {
-    mSharedBackend->mAddListeners.push_back(std::forward<F_function>(aCallback));
+    mActiveListenings.push_back(
+        mSharedBackend->listenEntityAdded(std::forward<F_function>(aCallback)));
 }
 
 
