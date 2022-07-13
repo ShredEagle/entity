@@ -19,6 +19,7 @@ public:
 
     virtual void pushIfMatches(const TypeSet & aCandidateTypeSet, Archetype & aCandidate) = 0;
     virtual void signalEntityAdded(Handle<Entity> aEntity, const EntityRecord & aRecord) = 0;
+    virtual void signalEntityRemoved(Handle<Entity> aEntity, const EntityRecord & aRecord) = 0;
 };
 
 
@@ -77,6 +78,7 @@ public:
     };
 
     using AddedEntityCallback = std::function<void(VT_components &...)>;
+    using RemovedEntityCallback = std::function<void(VT_components &...)>;
 
     template <class T_pairIterator>
     QueryBackend(T_pairIterator aFirst, T_pairIterator aLast);
@@ -84,15 +86,26 @@ public:
     template <class F_function>
     Listening listenEntityAdded(F_function && aCallback);
 
+    template <class F_function>
+    Listening listenEntityRemoved(F_function && aCallback);
+
     void pushIfMatches(const TypeSet & aCandidateTypeSet, Archetype & aCandidate) final;
 
     void signalEntityAdded(Handle<Entity> aEntity, const EntityRecord & aRecord) final;
+
+    void signalEntityRemoved(Handle<Entity> aEntity, const EntityRecord & aRecord) final;
+
+    template <class T_range>
+    void signal_impl(Handle<Entity> aEntity,
+                     const EntityRecord & aRecord,
+                     const T_range & aListeners) const;
 
     static const TypeSet & GetTypeSet();
 
     std::vector<MatchedArchetype> mMatchingArchetypes;
     // A list, because we can delete in the middle, and it should not invalidate other iterators.
     std::list<AddedEntityCallback> mAddListeners;
+    std::list<RemovedEntityCallback> mRemoveListeners;
 };
 
 
@@ -145,6 +158,19 @@ Listening QueryBackend<VT_components...>::listenEntityAdded(F_function && aCallb
 
 
 template <class... VT_components>
+template <class F_function>
+Listening QueryBackend<VT_components...>::listenEntityRemoved(F_function && aCallback)
+{
+    auto inserted = mRemoveListeners.emplace(mRemoveListeners.end(),
+                                             std::forward<F_function>(aCallback));
+    return Listening{[inserted, this]()
+        {
+            mRemoveListeners.erase(inserted);
+        }};
+}
+
+
+template <class... VT_components>
 void QueryBackend<VT_components...>::pushIfMatches(const TypeSet & aCandidateTypeSet,
                                                    Archetype & aCandidate)
 {
@@ -159,6 +185,24 @@ void QueryBackend<VT_components...>::pushIfMatches(const TypeSet & aCandidateTyp
 template <class... VT_components>
 void QueryBackend<VT_components...>::signalEntityAdded(Handle<Entity> aEntity, const EntityRecord & aRecord)
 {
+    signal_impl(aEntity, aRecord, mAddListeners);
+}
+
+
+template <class... VT_components>
+void QueryBackend<VT_components...>::signalEntityRemoved(Handle<Entity> aEntity, const EntityRecord & aRecord)
+{
+    signal_impl(aEntity, aRecord, mRemoveListeners);
+}
+
+
+template <class... VT_components>
+template <class T_range>
+void QueryBackend<VT_components...>::signal_impl(
+        Handle<Entity> aEntity,
+        const EntityRecord & aRecord,
+        const T_range & aListeners) const
+{
     auto found =
         std::find_if(mMatchingArchetypes.begin(),
                      mMatchingArchetypes.end(),
@@ -166,10 +210,11 @@ void QueryBackend<VT_components...>::signalEntityAdded(Handle<Entity> aEntity, c
                      {
                        return aMatch.mArchetype == aRecord.mArchetype;
                      });
+
     assert(found != mMatchingArchetypes.end());
     assert(aRecord.mIndex < found->mArchetype->countEntities());
 
-    for(auto & callback : mAddListeners)
+    for(auto & callback : aListeners)
     {
         invoke<VT_components...>(callback, *found, aRecord.mIndex);
     }

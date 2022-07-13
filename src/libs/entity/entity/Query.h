@@ -32,6 +32,9 @@ public:
     template <class F_function>
     void onAddEntity(F_function && aCallback);
 
+    template <class F_function>
+    void onRemoveEntity(F_function && aCallback);
+
 private:
     const std::vector<
         typename detail::QueryBackend<VT_components...>::MatchedArchetype> & matches() const
@@ -82,6 +85,15 @@ void Query<VT_components...>::onAddEntity(F_function && aCallback)
 {
     mActiveListenings.push_back(
         mSharedBackend->listenEntityAdded(std::forward<F_function>(aCallback)));
+}
+
+
+template <class... VT_components>
+template <class F_function>
+void Query<VT_components...>::onRemoveEntity(F_function && aCallback)
+{
+    mActiveListenings.push_back(
+        mSharedBackend->listenEntityRemoved(std::forward<F_function>(aCallback)));
 }
 
 

@@ -118,12 +118,12 @@ void Handle<Entity>::add(T_component aComponent)
     };
     updateRecord(newRecord);
 
-    // Notify the query backends that match target archetype but not source
+    // Notify the query backends that match target archetype, but not source archetype,
     // that a new entity was added.
-    auto difference = mManager.getExtraQueryBackends(targetArchetype, *initialRecord.mArchetype);
-    for (const auto & newQuery : difference)
+    auto addedBackends = mManager.getExtraQueryBackends(targetArchetype, *initialRecord.mArchetype);
+    for (const auto & addedQuery : addedBackends)
     {
-        newQuery->signalEntityAdded(*this, newRecord);
+        addedQuery->signalEntityAdded(*this, newRecord);
     }
 }
 
@@ -135,6 +135,14 @@ void Handle<Entity>::remove()
 
     Archetype & targetArchetype =
         mManager.restrictArchetype<T_component>(*initialRecord.mArchetype);
+
+    // Notify the query backends that match source archetype, but not target archetype,
+    // that the entity is being removed.
+    auto removedBackends = mManager.getExtraQueryBackends(*initialRecord.mArchetype, targetArchetype);
+    for (const auto & removedQuery : removedBackends)
+    {
+        removedQuery->signalEntityRemoved(*this, initialRecord);
+    }
 
     // The target archetype will grow by one: the size before insertion will be the inserted index.
     EntityIndex newIndex = targetArchetype.countEntities();
