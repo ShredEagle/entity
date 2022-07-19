@@ -1,5 +1,8 @@
 #include "EntityManager.h"
 
+#include <iterator>
+
+
 namespace ad {
 namespace ent {
 
