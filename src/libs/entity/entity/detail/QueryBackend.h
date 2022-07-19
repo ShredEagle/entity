@@ -5,6 +5,7 @@
 #include "../Archetype.h"
 
 #include <algorithm>
+#include <list>
 
 
 namespace ad {
