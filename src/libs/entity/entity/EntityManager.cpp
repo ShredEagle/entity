@@ -7,13 +7,13 @@ namespace ad {
 namespace ent {
 
 
-Archetype & EntityManager::getArchetype(const TypeSet & aTypeSet)
+Archetype & EntityManager::InternalState::getArchetype(const TypeSet & aTypeSet)
 {
     return mArchetypes.at(aTypeSet);
 }
 
 
-std::size_t EntityManager::countLiveEntities() const
+std::size_t EntityManager::InternalState::countLiveEntities() const
 {
     assert(mHandleMap.size() >= mFreedHandles.size());
 
@@ -21,7 +21,7 @@ std::size_t EntityManager::countLiveEntities() const
 }
 
 
-EntityRecord & EntityManager::record(HandleKey aKey)
+EntityRecord & EntityManager::InternalState::record(HandleKey aKey)
 {
     // TODO implement checks:
     // * that the generation is matching
@@ -30,7 +30,7 @@ EntityRecord & EntityManager::record(HandleKey aKey)
 }
 
 
-void EntityManager::freeHandle(HandleKey aKey)
+void EntityManager::InternalState::freeHandle(HandleKey aKey)
 {
     record(aKey).mArchetype = nullptr;
     mFreedHandles.push_back(std::move(aKey));
@@ -38,7 +38,7 @@ void EntityManager::freeHandle(HandleKey aKey)
 
 
 std::vector<detail::QueryBackendBase *>
-EntityManager::getExtraQueryBackends(const Archetype & aCompared,
+EntityManager::InternalState::getExtraQueryBackends(const Archetype & aCompared,
                                      const Archetype & aReference) const
 {
     using QueryBackendSet = std::set<detail::QueryBackendBase *>;

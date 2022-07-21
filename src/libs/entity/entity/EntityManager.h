@@ -28,55 +28,105 @@ class EntityManager
     template <class>
     friend class Inspector;
 
+    class InternalState
+    {
+        template <class>
+        friend class Inspector;
+
+    public:
+        Handle<Entity> addEntity(EntityManager & aManager);
+
+        std::size_t countLiveEntities() const;
+
+        Archetype & getArchetype(const TypeSet & aTypeSet);
+
+        template <class T_component>
+        Archetype & extendArchetype(const Archetype & aArchetype);
+
+        template <class T_component>
+        Archetype & restrictArchetype(const Archetype & aArchetype);
+
+        EntityRecord & record(HandleKey aKey);
+
+        void freeHandle(HandleKey aKey);
+
+        template <class... VT_components>
+        detail::QueryBackend<VT_components...> * getQueryBackend();
+
+        // TODO This could be massively optimized by keeping a graph of transformations on the
+        // archetypes, and storing the backend difference along the edges.
+        // Basically, the edge would cache this information.
+        /// \brief Return all QueryBackends that are present i aCompared, but not in aReference.
+        std::vector<detail::QueryBackendBase *>
+        getExtraQueryBackends(const Archetype & aCompared, const Archetype & aReference) const;
+
+    private:
+        template <class F_maker>
+        Archetype & makeArchetypeIfAbsent(const TypeSet & aTargetTypeSet, F_maker aMakeCallback);
+
+        // TODO Refactor with fewer higher level classes, this is turning into a super class.
+        HandleKey mNextHandle;
+        std::map<HandleKey, EntityRecord> mHandleMap;
+        std::deque<HandleKey> mFreedHandles;
+        std::map<TypeSet, Archetype> mArchetypes;
+
+        // TODO Ad 2022/07/08: Replace the TypeSequence by a TypeSet.
+        // This will imply that all queries on the same set of components,
+        // **independently of the order**, will share the same QueryBackend.
+        // The main complication will be that the Query will need to statically sort the components
+        // to instantiate their pointer to backend.
+        std::map<TypeSequence, std::unique_ptr<detail::QueryBackendBase>> mQueryBackends;
+    };
+
 public:
     //EntityManager();
 
     /// \warning Thread unsafe!
     // TODO should be made thread safe (take a look at lock-free approaches)
-    Handle<Entity> addEntity();
+    Handle<Entity> addEntity()
+    { return mState.addEntity(*this); }
 
-    std::size_t countLiveEntities() const;
+    std::size_t countLiveEntities() const
+    { return mState.countLiveEntities(); }
+
+    State saveState() const;
 
 private:
-    Archetype & getArchetype(const TypeSet & aTypeSet);
+    // Forward all externally used methods to state, so the state struct is hidden
+    Archetype & getArchetype(const TypeSet & aTypeSet)
+    { return mState.getArchetype(aTypeSet); }
 
     template <class T_component>
-    Archetype & extendArchetype(const Archetype & aArchetype);
+    Archetype & extendArchetype(const Archetype & aArchetype)
+    { return mState.extendArchetype<T_component>(aArchetype); }
 
     template <class T_component>
-    Archetype & restrictArchetype(const Archetype & aArchetype);
+    Archetype & restrictArchetype(const Archetype & aArchetype)
+    { return mState.restrictArchetype<T_component>(aArchetype); }
 
-    template <class F_maker>
-    Archetype & makeArchetypeIfAbsent(const TypeSet & aTargetTypeSet, F_maker aMakeCallback);
+    EntityRecord & record(HandleKey aKey)
+    { return mState.record(aKey); }
 
-    EntityRecord & record(HandleKey aKey);
-
-    void freeHandle(HandleKey aKey);
+    void freeHandle(HandleKey aKey)
+    { return mState.freeHandle(aKey); }
 
     template <class... VT_components>
-    detail::QueryBackend<VT_components...> * getQueryBackend();
+    detail::QueryBackend<VT_components...> * getQueryBackend()
+    { return mState.getQueryBackend<VT_components...>(); }
 
-    // TODO This could be massively optimized by keeping a graph of transformations on the
-    // archetypes, and storing the backend difference along the edges.
-    // Basically, the edge would cache this information.
-    /// \brief Return all QueryBackends that are present i aCompared, but not in aReference.
+    //// TODO This could be massively optimized by keeping a graph of transformations on the
+    //// archetypes, and storing the backend difference along the edges.
+    //// Basically, the edge would cache this information.
+    ///// \brief Return all QueryBackends that are present i aCompared, but not in aReference.
     std::vector<detail::QueryBackendBase *>
-    getExtraQueryBackends(const Archetype & aCompared, const Archetype & aReference) const;
-
-    // TODO Refactor with a fewer higher level classes, this is turning into a super class.
-    HandleKey mNextHandle;
-    std::map<HandleKey, EntityRecord> mHandleMap;
-    std::deque<HandleKey> mFreedHandles;
-    std::map<TypeSet, Archetype> mArchetypes;
-
-    // TODO Ad 2022/07/08: Replace the TypeSequence by a TypeSet.
-    // This will imply that all queries on the same set of components,
-    // **independently of the order**, will share the same QueryBackend.
-    // The main complication will be that the Query will need to statically sort the components
-    // to instantiate their pointer to backend.
-    std::map<TypeSequence, std::unique_ptr<detail::QueryBackendBase>> mQueryBackends;
+    getExtraQueryBackends(const Archetype & aCompared, const Archetype & aReference) const
+    { return mState.getExtraQueryBackends(aCompared, aReference); }
 
     inline static const TypeSet gEmptyTypeSet{};
+
+    InternalState mState;
+};
+
 };
 
 
@@ -163,7 +213,7 @@ void Handle<Entity>::remove()
 }
 
 
-inline Handle<Entity> EntityManager::addEntity()
+inline Handle<Entity> EntityManager::InternalState::addEntity(EntityManager & aManager)
 {
     auto & archetype = mArchetypes[gEmptyTypeSet];
     mHandleMap[mNextHandle] = EntityRecord{
@@ -175,12 +225,12 @@ inline Handle<Entity> EntityManager::addEntity()
     // Has to be done after taking the entity count as index, for the new EntityRecord.
     archetype.pushKey(key);
 
-    return Handle<Entity>{key, *this};
+    return Handle<Entity>{key, aManager};
 }
 
 
 template <class T_component>
-Archetype & EntityManager::extendArchetype(const Archetype & aArchetype)
+Archetype & EntityManager::InternalState::extendArchetype(const Archetype & aArchetype)
 {
     TypeSet targetTypeSet{aArchetype.getTypeSet()};
     targetTypeSet.insert(getId<T_component>());
@@ -192,7 +242,7 @@ Archetype & EntityManager::extendArchetype(const Archetype & aArchetype)
 
 
 template <class T_component>
-Archetype & EntityManager::restrictArchetype(const Archetype & aArchetype)
+Archetype & EntityManager::InternalState::restrictArchetype(const Archetype & aArchetype)
 {
     TypeSet targetTypeSet{aArchetype.getTypeSet()};
     targetTypeSet.erase(getId<T_component>());
@@ -204,7 +254,7 @@ Archetype & EntityManager::restrictArchetype(const Archetype & aArchetype)
 
 
 template <class F_maker>
-Archetype & EntityManager::makeArchetypeIfAbsent(const TypeSet & aTargetTypeSet,
+Archetype & EntityManager::InternalState::makeArchetypeIfAbsent(const TypeSet & aTargetTypeSet,
                                                  F_maker aMakeCallback)
 {
     if (auto found = mArchetypes.find(aTargetTypeSet);
@@ -226,7 +276,7 @@ Archetype & EntityManager::makeArchetypeIfAbsent(const TypeSet & aTargetTypeSet,
 
 
 template <class... VT_components>
-detail::QueryBackend<VT_components...> * EntityManager::getQueryBackend()
+detail::QueryBackend<VT_components...> * EntityManager::InternalState::getQueryBackend()
 {
     TypeSequence backendKey = getTypeSequence<VT_components...>();
     detail::QueryBackendBase * backend;
