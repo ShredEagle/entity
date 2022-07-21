@@ -161,7 +161,7 @@ template <class T_component>
 Entity & Entity::add(T_component aComponent)
 {
     mPhase.append(
-        [&handle = mHandle, component = std::move(aComponent)]
+        [handle = mHandle, component = std::move(aComponent)] () mutable
         {
             handle.add<T_component>(component);
         });
@@ -173,7 +173,7 @@ template <class T_component>
 Entity & Entity::remove()
 {
     mPhase.append(
-        [&handle = mHandle]
+        [handle = mHandle] () mutable
         {
             handle.remove<T_component>();
         });
