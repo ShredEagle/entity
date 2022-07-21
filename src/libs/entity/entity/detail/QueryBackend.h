@@ -139,8 +139,8 @@ QueryBackend<VT_components...>::QueryBackend(T_pairIterator aFirst, T_pairIterat
 {
     for(/**/; aFirst != aLast; ++aFirst)
     {
-        auto & [typeSet, archetype] = *aFirst;
-        pushIfMatches(typeSet, archetype);
+        auto & [typeSet, archetypeRecord] = *aFirst;
+        pushIfMatches(typeSet, archetypeRecord.mArchetype);
     }
 }
 
@@ -207,9 +207,9 @@ void QueryBackend<VT_components...>::signal_impl(
     auto found =
         std::find_if(mMatchingArchetypes.begin(),
                      mMatchingArchetypes.end(),
-                     [&aRecord](const auto & aMatch) -> bool
+                     [&aRecord, &aEntity](const auto & aMatch) -> bool
                      {
-                       return aMatch.mArchetype == aRecord.mArchetype;
+                       return aMatch.mArchetype == &aEntity.archetype();
                      });
 
     assert(found != mMatchingArchetypes.end());

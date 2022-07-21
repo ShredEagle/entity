@@ -120,12 +120,20 @@ private:
 template <class T_handled>
 class Handle;
 
+namespace detail
+{
+    template <class...>
+    class QueryBackend;
+}
 
 template <>
 class Handle<Entity>
 {
     friend class Entity;
     friend class EntityManager;
+    // TODO remove
+    template <class...>
+    friend class detail::QueryBackend;
 
 public:
     /// \brief Checks whether the handle is valid, currently pointing to an Entity.
@@ -158,9 +166,9 @@ private:
     /// The record is returned by **copy**, to prevent mutation.
     EntityRecord record() const;
 
-    Archetype & archetype() const;
-
     EntityReference reference() const;
+
+    Archetype & archetype() const;
 
     void updateRecord(EntityRecord aNewRecord);
 
