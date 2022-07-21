@@ -23,6 +23,7 @@ class EntityManager
     friend class Handle<Entity>;
     template <class...>
     friend class Query;
+    friend class State;
 
     // To be implemented by the test application, allowing to access private parts.
     template <class>
@@ -75,7 +76,7 @@ class EntityManager
         // **independently of the order**, will share the same QueryBackend.
         // The main complication will be that the Query will need to statically sort the components
         // to instantiate their pointer to backend.
-        std::map<TypeSequence, std::unique_ptr<detail::QueryBackendBase>> mQueryBackends;
+        std::map<TypeSequence, std::shared_ptr<detail::QueryBackendBase>> mQueryBackends;
     };
 
 public:
@@ -90,6 +91,7 @@ public:
     { return mState.countLiveEntities(); }
 
     State saveState() const;
+    void restoreState(State aState);
 
 private:
     // Forward all externally used methods to state, so the state struct is hidden
@@ -127,6 +129,18 @@ private:
     InternalState mState;
 };
 
+
+class State
+{
+    friend class EntityManager;
+
+public:
+    explicit State(EntityManager::InternalState aState) :
+        mState{std::move(aState)}
+    {}
+
+private:
+    EntityManager::InternalState mState;
 };
 
 

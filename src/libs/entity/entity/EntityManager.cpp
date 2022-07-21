@@ -69,5 +69,17 @@ EntityManager::InternalState::getExtraQueryBackends(const Archetype & aCompared,
 }
 
 
+State EntityManager::saveState() const
+{
+    return State{mState};
+}
+
+
+void EntityManager::restoreState(State aState)
+{
+    mState = std::move(aState.mState);
+}
+
+
 } // namespace ent
 } // namespace ad

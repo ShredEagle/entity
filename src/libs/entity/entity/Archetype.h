@@ -31,6 +31,7 @@ public:
     virtual std::size_t size() const = 0;
     virtual void * data() = 0;
     virtual std::unique_ptr<StorageBase> cloneEmpty() const = 0;
+    virtual std::unique_ptr<StorageBase> clone() const = 0;
     /// \brief Move data from aSource, pushing it a the back of this storage.
     virtual void moveFrom(EntityIndex aSourceIndex, StorageBase & aSource) = 0;
 
@@ -59,6 +60,9 @@ public:
 
     std::unique_ptr<StorageBase> cloneEmpty() const override
     { return std::make_unique<Storage<T_component>>(); }
+
+    std::unique_ptr<StorageBase> clone() const override
+    { return std::make_unique<Storage<T_component>>(*this); }
 
     void moveFrom(EntityIndex aSourceIndex, StorageBase & aSource) override
     { mArray.push_back(std::move(aSource.get<T_component>(aSourceIndex))); }
@@ -100,6 +104,29 @@ private:
 };
 
 class EntityManager; //forward
+
+
+/// \brief Actual storage for the different components of an Archetype.
+///
+/// It is a light wrapper around a vector of unique_ptrs, with the added
+/// ability of copying (via StorageBase cloning).
+class DataStore : public std::vector<std::unique_ptr<StorageBase>>
+{
+    using Parent_t = std::vector<std::unique_ptr<StorageBase>>;
+
+public:
+    DataStore() = default;
+    ~DataStore() = default;
+
+    DataStore(const DataStore & aRhs);
+    DataStore & operator=(const DataStore & aRhs);
+
+    DataStore(DataStore && aRhs) = default;
+    DataStore & operator=(DataStore && aRhs) = default;
+
+private:
+    void swap(DataStore & aRhs);
+};
 
 // TODO Establish what it means for an Archetype to be constant:
 // * At least means that entities cannot be added/removed from the archetype.
@@ -161,7 +188,7 @@ private:
     // TODO cache typeset, or even better only have a typeset, so the components are ordered
     //TypeSet mTypeSet;
     std::vector<ComponentId> mType;
-    std::vector<std::unique_ptr<StorageBase>> mStores;
+    DataStore mStores;
     // The handles of the entities stored in this archetype, in the same order than in each Store.
     std::vector<HandleKey> mHandles;
 };

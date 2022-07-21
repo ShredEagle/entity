@@ -1,8 +1,8 @@
 #pragma once
 
 
-#include "../Entity.h"
-#include "../Archetype.h"
+#include <entity/Entity.h>
+#include <entity/Archetype.h>
 
 #include <algorithm>
 #include <list>

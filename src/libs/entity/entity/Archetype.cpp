@@ -7,6 +7,30 @@ namespace ad {
 namespace ent {
 
 
+DataStore::DataStore(const DataStore & aRhs)
+{
+    for(const auto & storagePtr : aRhs)
+    {
+        push_back(storagePtr->clone());
+    }
+}
+
+
+DataStore & DataStore::operator=(const DataStore & aRhs)
+{
+    DataStore copy{aRhs};
+    swap(copy);
+    return *this;
+}
+
+
+void DataStore::swap(DataStore & aRhs)
+{
+    std::swap(static_cast<Parent_t &>(*this),
+              static_cast<Parent_t &>(aRhs));
+}
+
+
 std::size_t Archetype::countEntities() const
 {
     auto result = mHandles.size();
