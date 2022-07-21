@@ -15,6 +15,13 @@ namespace ad {
 namespace ent {
 
 
+struct ArchetypeRecord
+{
+    Archetype & mArchetype;
+    Handle<Archetype> mHandle;
+};
+
+
 // TODO implement reuse of handle from the free list
 // TODO implement handle free list hosted implicitly in a vector of handles
 class EntityManager
@@ -42,12 +49,13 @@ class EntityManager
         Archetype & getArchetype(const TypeSet & aTypeSet);
 
         template <class T_component>
-        Archetype & extendArchetype(const Archetype & aArchetype);
+        ArchetypeRecord extendArchetype(const Archetype & aArchetype);
 
         template <class T_component>
-        Archetype & restrictArchetype(const Archetype & aArchetype);
+        ArchetypeRecord restrictArchetype(const Archetype & aArchetype);
 
         EntityRecord & record(HandleKey aKey);
+        Archetype & archetype(Handle<Archetype> aHandle);
 
         void freeHandle(HandleKey aKey);
 
@@ -63,13 +71,22 @@ class EntityManager
 
     private:
         template <class F_maker>
-        Archetype & makeArchetypeIfAbsent(const TypeSet & aTargetTypeSet, F_maker aMakeCallback);
+        ArchetypeRecord makeArchetypeIfAbsent(const TypeSet & aTargetTypeSet, F_maker aMakeCallback);
+
+        inline static const TypeSet gEmptyTypeSet{};
 
         // TODO Refactor with fewer higher level classes, this is turning into a super class.
         HandleKey mNextHandle;
         std::map<HandleKey, EntityRecord> mHandleMap;
         std::deque<HandleKey> mFreedHandles;
-        std::map<TypeSet, Archetype> mArchetypes;
+
+        std::vector<Archetype> mHandleToArchetype{Archetype{}};
+        std::map<TypeSet, ArchetypeRecord> mArchetypes{
+            {
+                gEmptyTypeSet,
+                {mHandleToArchetype[0], 0}
+            }};
+        // Will insert the empty type set archetype in mArchetypes, and assign it the first handle.
 
         // TODO Ad 2022/07/08: Replace the TypeSequence by a TypeSet.
         // This will imply that all queries on the same set of components,
@@ -99,15 +116,18 @@ private:
     { return mState.getArchetype(aTypeSet); }
 
     template <class T_component>
-    Archetype & extendArchetype(const Archetype & aArchetype)
+    ArchetypeRecord extendArchetype(const Archetype & aArchetype)
     { return mState.extendArchetype<T_component>(aArchetype); }
 
     template <class T_component>
-    Archetype & restrictArchetype(const Archetype & aArchetype)
+    ArchetypeRecord restrictArchetype(const Archetype & aArchetype)
     { return mState.restrictArchetype<T_component>(aArchetype); }
 
     EntityRecord & record(HandleKey aKey)
     { return mState.record(aKey); }
+
+    Archetype & archetype(Handle<Archetype> aHandle)
+    { return mState.archetype(aHandle); }
 
     void freeHandle(HandleKey aKey)
     { return mState.freeHandle(aKey); }
@@ -123,8 +143,6 @@ private:
     std::vector<detail::QueryBackendBase *>
     getExtraQueryBackends(const Archetype & aCompared, const Archetype & aReference) const
     { return mState.getExtraQueryBackends(aCompared, aReference); }
-
-    inline static const TypeSet gEmptyTypeSet{};
 
     InternalState mState;
 };
@@ -152,19 +170,21 @@ template <class T_component>
 void Handle<Entity>::add(T_component aComponent)
 {
     EntityRecord initialRecord = record();
+    Archetype & initialArchetype = archetype();
 
-    Archetype & targetArchetype =
-        mManager.extendArchetype<T_component>(*initialRecord.mArchetype);
+    ArchetypeRecord targetArchetypeRecord =
+        mManager.extendArchetype<T_component>(initialArchetype);
+    Archetype & targetArchetype = targetArchetypeRecord.mArchetype;
 
     // The target archetype will grow by one: the size before insertion will be the inserted index.
     EntityIndex newIndex = targetArchetype.countEntities();
-    initialRecord.mArchetype->move(initialRecord.mIndex, targetArchetype, mManager);
+    initialArchetype.move(initialRecord.mIndex, targetArchetype, mManager);
 
     // TODO ideally, we get rid of this test, so the implementations is as fast as possible
     // when the component is not present,
     // and it is suboptimal if it is already present.
     // The problem is with the push
-    if (! initialRecord.mArchetype->has<T_component>()) [[likely]]
+    if (! initialArchetype.has<T_component>()) [[likely]]
     {
         targetArchetype.push(std::move(aComponent));
     }
@@ -177,14 +197,14 @@ void Handle<Entity>::add(T_component aComponent)
     }
 
     EntityRecord newRecord{
-        .mArchetype = &targetArchetype,
+        .mArchetype = targetArchetypeRecord.mHandle,
         .mIndex = newIndex,
     };
     updateRecord(newRecord);
 
     // Notify the query backends that match target archetype, but not source archetype,
     // that a new entity was added.
-    auto addedBackends = mManager.getExtraQueryBackends(targetArchetype, *initialRecord.mArchetype);
+    auto addedBackends = mManager.getExtraQueryBackends(targetArchetype, initialArchetype);
     for (const auto & addedQuery : addedBackends)
     {
         addedQuery->signalEntityAdded(*this, newRecord);
@@ -196,13 +216,15 @@ template <class T_component>
 void Handle<Entity>::remove()
 {
     EntityRecord initialRecord = record();
+    Archetype & initialArchetype = archetype();
 
-    Archetype & targetArchetype =
-        mManager.restrictArchetype<T_component>(*initialRecord.mArchetype);
+    ArchetypeRecord targetArchetypeRecord =
+        mManager.restrictArchetype<T_component>(initialArchetype);
+    Archetype & targetArchetype = targetArchetypeRecord.mArchetype;
 
     // Notify the query backends that match source archetype, but not target archetype,
     // that the entity is being removed.
-    auto removedBackends = mManager.getExtraQueryBackends(*initialRecord.mArchetype, targetArchetype);
+    auto removedBackends = mManager.getExtraQueryBackends(initialArchetype, targetArchetype);
     for (const auto & removedQuery : removedBackends)
     {
         removedQuery->signalEntityRemoved(*this, initialRecord);
@@ -210,9 +232,9 @@ void Handle<Entity>::remove()
 
     // The target archetype will grow by one: the size before insertion will be the inserted index.
     EntityIndex newIndex = targetArchetype.countEntities();
-    initialRecord.mArchetype->move(initialRecord.mIndex, targetArchetype, mManager);
+    initialArchetype.move(initialRecord.mIndex, targetArchetype, mManager);
 
-    if (!initialRecord.mArchetype->has<T_component>()) [[unlikely]]
+    if (!initialArchetype.has<T_component>()) [[unlikely]]
     {
         // When the target archetype is the same as the source archetype (i.e., the component was not present)
         // the target archetype will not grow in size, so decrement the new index.
@@ -220,7 +242,7 @@ void Handle<Entity>::remove()
     }
 
     EntityRecord newRecord{
-        .mArchetype = &targetArchetype,
+        .mArchetype = targetArchetypeRecord.mHandle,
         .mIndex = newIndex,
     };
     updateRecord(newRecord);
@@ -229,22 +251,24 @@ void Handle<Entity>::remove()
 
 inline Handle<Entity> EntityManager::InternalState::addEntity(EntityManager & aManager)
 {
-    auto & archetype = mArchetypes[gEmptyTypeSet];
-    mHandleMap[mNextHandle] = EntityRecord{
-        &archetype,
-        archetype.countEntities(),
-    };
+    auto & record = mArchetypes.at(gEmptyTypeSet);
+    mHandleMap.insert_or_assign(
+        mNextHandle,
+        EntityRecord{
+            Handle<Archetype>{HandleKey{}},
+            record.mArchetype.countEntities()
+        });
 
     HandleKey key = mNextHandle++;
     // Has to be done after taking the entity count as index, for the new EntityRecord.
-    archetype.pushKey(key);
+    record.mArchetype.pushKey(key);
 
     return Handle<Entity>{key, aManager};
 }
 
 
 template <class T_component>
-Archetype & EntityManager::InternalState::extendArchetype(const Archetype & aArchetype)
+ArchetypeRecord EntityManager::InternalState::extendArchetype(const Archetype & aArchetype)
 {
     TypeSet targetTypeSet{aArchetype.getTypeSet()};
     targetTypeSet.insert(getId<T_component>());
@@ -256,7 +280,7 @@ Archetype & EntityManager::InternalState::extendArchetype(const Archetype & aArc
 
 
 template <class T_component>
-Archetype & EntityManager::InternalState::restrictArchetype(const Archetype & aArchetype)
+ArchetypeRecord EntityManager::InternalState::restrictArchetype(const Archetype & aArchetype)
 {
     TypeSet targetTypeSet{aArchetype.getTypeSet()};
     targetTypeSet.erase(getId<T_component>());
@@ -268,7 +292,7 @@ Archetype & EntityManager::InternalState::restrictArchetype(const Archetype & aA
 
 
 template <class F_maker>
-Archetype & EntityManager::InternalState::makeArchetypeIfAbsent(const TypeSet & aTargetTypeSet,
+ArchetypeRecord EntityManager::InternalState::makeArchetypeIfAbsent(const TypeSet & aTargetTypeSet,
                                                  F_maker aMakeCallback)
 {
     if (auto found = mArchetypes.find(aTargetTypeSet);
@@ -278,11 +302,19 @@ Archetype & EntityManager::InternalState::makeArchetypeIfAbsent(const TypeSet & 
     }
     else
     {
-        Archetype & inserted = mArchetypes.emplace(aTargetTypeSet, aMakeCallback()).first->second;
+        std::size_t insertedPosition = mHandleToArchetype.size();
+        mHandleToArchetype.push_back(aMakeCallback());
+        ArchetypeRecord inserted = mArchetypes.emplace(
+            aTargetTypeSet,
+            ArchetypeRecord{
+                mHandleToArchetype[insertedPosition],
+                insertedPosition
+            })
+            .first->second;
         // Ask each QueryBackend if it is interested in the new archetype.
         for (auto & [_types, queryBackend] : mQueryBackends)
         {
-            queryBackend->pushIfMatches(aTargetTypeSet, inserted);
+            queryBackend->pushIfMatches(aTargetTypeSet, inserted.mArchetype);
         }
         return inserted;
     }

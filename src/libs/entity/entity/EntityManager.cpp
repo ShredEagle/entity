@@ -1,4 +1,5 @@
 #include "EntityManager.h"
+#include "entity/Component.h"
 
 #include <iterator>
 
@@ -9,7 +10,7 @@ namespace ent {
 
 Archetype & EntityManager::InternalState::getArchetype(const TypeSet & aTypeSet)
 {
-    return mArchetypes.at(aTypeSet);
+    return mArchetypes.at(aTypeSet).mArchetype;
 }
 
 
@@ -30,9 +31,18 @@ EntityRecord & EntityManager::InternalState::record(HandleKey aKey)
 }
 
 
+Archetype & EntityManager::InternalState::archetype(Handle<Archetype> aHandle)
+{
+    // TODO implement checks:
+    // * that the generation is matching
+    // * that the record is still there? (or is it a responsibility of the client to check for nullptr?)
+    return mHandleToArchetype.at(aHandle.mKey);
+}
+
+
 void EntityManager::InternalState::freeHandle(HandleKey aKey)
 {
-    record(aKey).mArchetype = nullptr;
+    record(aKey).mIndex = gInvalidIndex;
     mFreedHandles.push_back(std::move(aKey));
 }
 

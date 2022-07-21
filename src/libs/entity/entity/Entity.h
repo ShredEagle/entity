@@ -15,17 +15,38 @@ namespace ad {
 namespace ent {
 
 
-struct EntityRecord
-{
-    Archetype * mArchetype;
-    EntityIndex mIndex;
-};
-
-
 class EntityManager; // forward
 
 template <class T_handled>
 class Handle; // forward
+
+
+template<>
+class Handle<Archetype>
+{
+    friend class EntityManager;
+
+private:
+    Handle(std::size_t aKey) :
+        mKey{aKey}
+    {}
+
+    std::size_t mKey;
+};
+
+
+struct EntityRecord
+{
+    Handle<Archetype> mArchetype;
+    EntityIndex mIndex;
+};
+
+
+struct EntityReference
+{
+    Archetype * mArchetype;
+    EntityIndex mIndex;
+};
 
 
 /// \brief This class allows to stack-up the operations to be
@@ -79,16 +100,16 @@ public:
 
 private:
     Entity(
-        EntityRecord aRecord,
+        EntityReference aReference,
         Handle<Entity> & aHandle,
         Phase & aPhase) :
-        mRecord{std::move(aRecord)},
+        mReference{aReference},
         mHandle{aHandle},
         mPhase{aPhase}
     {}
 
     // For immediate operations
-    EntityRecord mRecord;
+    EntityReference mReference;
 
     // For  deferred operations
     Handle<Entity> & mHandle;
@@ -137,12 +158,15 @@ private:
     /// The record is returned by **copy**, to prevent mutation.
     EntityRecord record() const;
 
+    Archetype & archetype() const;
+
+    EntityReference reference() const;
+
     void updateRecord(EntityRecord aNewRecord);
 
     HandleKey mKey;
     EntityManager & mManager;
 };
-
 
 
 //
@@ -184,14 +208,14 @@ Entity & Entity::remove()
 template <class T_component>
 bool Entity::has()
 {
-    return mRecord.mArchetype->has<T_component>();
+    return mReference.mArchetype->has<T_component>();
 }
 
 
 template <class T_component>
 T_component & Entity::get()
 {
-    return mRecord.mArchetype->get<T_component>(mRecord.mIndex);
+    return mReference.mArchetype->get<T_component>(mReference.mIndex);
 }
 
 
