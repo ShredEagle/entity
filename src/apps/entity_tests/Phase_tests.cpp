@@ -38,7 +38,7 @@ SCENARIO("Phases defer some modifications.")
                     }
                 }
 
-                THEN("The component becomes visible when the phase over.")
+                THEN("The component becomes visible when the phase is over.")
                 {
                     Phase phase;
                     Entity e1 = *h1.get(phase);
