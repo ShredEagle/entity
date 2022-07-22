@@ -139,8 +139,13 @@ QueryBackend<VT_components...>::QueryBackend(T_pairIterator aFirst, T_pairIterat
 {
     for(/**/; aFirst != aLast; ++aFirst)
     {
-        auto & [typeSet, archetypeRecord] = *aFirst;
-        pushIfMatches(typeSet, archetypeRecord.mArchetype);
+        // TODO The entity manager has the typeset information ready, so it should be forwarded
+        // here instead of re-computed.
+        // The problem is that the map<TypeSet, Handle> only has the handle, not the archetype,
+        // so we use the vector of archetypes instead.
+        Archetype & archetype = *aFirst;
+        TypeSet typeSet = archetype.getTypeSet();
+        pushIfMatches(typeSet, archetype);
     }
 }
 

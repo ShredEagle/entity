@@ -15,9 +15,9 @@ namespace ad {
 namespace ent {
 
 
+// TODO If this remains with handle only, remove and replace with handle.
 struct ArchetypeRecord
 {
-    Archetype & mArchetype;
     Handle<Archetype> mHandle;
 };
 
@@ -84,7 +84,7 @@ class EntityManager
         std::map<TypeSet, ArchetypeRecord> mArchetypes{
             {
                 gEmptyTypeSet,
-                {mHandleToArchetype[0], 0}
+                {0}
             }};
         // Will insert the empty type set archetype in mArchetypes, and assign it the first handle.
 
@@ -170,11 +170,15 @@ template <class T_component>
 void Handle<Entity>::add(T_component aComponent)
 {
     EntityRecord initialRecord = record();
-    Archetype & initialArchetype = archetype();
+    Handle<Archetype> initialArchetypeHandle = initialRecord.mArchetype;
 
-    ArchetypeRecord targetArchetypeRecord =
-        mManager.extendArchetype<T_component>(initialArchetype);
-    Archetype & targetArchetype = targetArchetypeRecord.mArchetype;
+    Handle<Archetype> targetArchetypeHandle =
+        mManager.extendArchetype<T_component>(mManager.archetype(initialArchetypeHandle)).mHandle;
+    Archetype & targetArchetype = mManager.archetype(targetArchetypeHandle);
+
+    // The extend might have invalidate the archetype reference
+    // So take it only now.
+    Archetype & initialArchetype = mManager.archetype(initialArchetypeHandle);
 
     // The target archetype will grow by one: the size before insertion will be the inserted index.
     EntityIndex newIndex = targetArchetype.countEntities();
@@ -197,7 +201,7 @@ void Handle<Entity>::add(T_component aComponent)
     }
 
     EntityRecord newRecord{
-        .mArchetype = targetArchetypeRecord.mHandle,
+        .mArchetype = targetArchetypeHandle,
         .mIndex = newIndex,
     };
     updateRecord(newRecord);
@@ -216,12 +220,13 @@ template <class T_component>
 void Handle<Entity>::remove()
 {
     EntityRecord initialRecord = record();
-    Archetype & initialArchetype = archetype();
+    Handle<Archetype> initialArchetypeHandle = initialRecord.mArchetype;
 
-    ArchetypeRecord targetArchetypeRecord =
-        mManager.restrictArchetype<T_component>(initialArchetype);
-    Archetype & targetArchetype = targetArchetypeRecord.mArchetype;
+    Handle<Archetype> targetArchetypeHandle =
+        mManager.restrictArchetype<T_component>(mManager.archetype(initialArchetypeHandle)).mHandle;
+    Archetype & targetArchetype = mManager.archetype(targetArchetypeHandle);
 
+    Archetype & initialArchetype = mManager.archetype(initialArchetypeHandle);
     // Notify the query backends that match source archetype, but not target archetype,
     // that the entity is being removed.
     auto removedBackends = mManager.getExtraQueryBackends(initialArchetype, targetArchetype);
@@ -242,7 +247,7 @@ void Handle<Entity>::remove()
     }
 
     EntityRecord newRecord{
-        .mArchetype = targetArchetypeRecord.mHandle,
+        .mArchetype = targetArchetypeHandle,
         .mIndex = newIndex,
     };
     updateRecord(newRecord);
@@ -251,17 +256,19 @@ void Handle<Entity>::remove()
 
 inline Handle<Entity> EntityManager::InternalState::addEntity(EntityManager & aManager)
 {
-    auto & record = mArchetypes.at(gEmptyTypeSet);
+    // We know the empty archetype is first in the vector
+    Archetype & emptyArchetype =  mHandleToArchetype.front();
+
     mHandleMap.insert_or_assign(
         mNextHandle,
         EntityRecord{
-            Handle<Archetype>{HandleKey{}},
-            record.mArchetype.countEntities()
+            Handle<Archetype>{0},
+            emptyArchetype.countEntities()
         });
 
     HandleKey key = mNextHandle++;
     // Has to be done after taking the entity count as index, for the new EntityRecord.
-    record.mArchetype.pushKey(key);
+    emptyArchetype.pushKey(key);
 
     return Handle<Entity>{key, aManager};
 }
@@ -307,14 +314,13 @@ ArchetypeRecord EntityManager::InternalState::makeArchetypeIfAbsent(const TypeSe
         ArchetypeRecord inserted = mArchetypes.emplace(
             aTargetTypeSet,
             ArchetypeRecord{
-                mHandleToArchetype[insertedPosition],
                 insertedPosition
             })
             .first->second;
         // Ask each QueryBackend if it is interested in the new archetype.
         for (auto & [_types, queryBackend] : mQueryBackends)
         {
-            queryBackend->pushIfMatches(aTargetTypeSet, inserted.mArchetype);
+            queryBackend->pushIfMatches(aTargetTypeSet, mHandleToArchetype[insertedPosition]);
         }
         return inserted;
     }
@@ -335,8 +341,8 @@ detail::QueryBackend<VT_components...> * EntityManager::InternalState::getQueryB
     {
         auto insertion = mQueryBackends.emplace(
             backendKey,
-            std::make_unique<detail::QueryBackend<VT_components...>>(mArchetypes.begin(),
-                                                                     mArchetypes.end()));
+            std::make_unique<detail::QueryBackend<VT_components...>>(mHandleToArchetype.begin(),
+                                                                     mHandleToArchetype.end()));
         backend = insertion.first->second.get();
     }
 

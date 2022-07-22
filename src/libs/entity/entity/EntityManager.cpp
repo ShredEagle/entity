@@ -10,7 +10,7 @@ namespace ent {
 
 Archetype & EntityManager::InternalState::getArchetype(const TypeSet & aTypeSet)
 {
-    return mArchetypes.at(aTypeSet).mArchetype;
+    return archetype(mArchetypes.at(aTypeSet).mHandle);
 }
 
 
