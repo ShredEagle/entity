@@ -1,15 +1,14 @@
-name: Build, test, deploy recipe
+name: Topical build-test
 
 on:
   push:
     branches:
-      - develop
+      - topic/**
+      - fix/**
 
 jobs:
-  build:
+  build-test:
     uses: shredeagle/reusable-workflows/.github/workflows/main_build.yml@v2.2.0
-    with:
-      deployrecipe_userchannel: adnn/develop
     secrets:
       SHREDROBOT_GITHUB_TOKEN: ${{ secrets.SHREDROBOT_GITHUB_TOKEN }}
       ACTION_CACHENAME: ${{ secrets.ACTION_CACHENAME }}
