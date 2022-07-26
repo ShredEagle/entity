@@ -286,7 +286,6 @@ HandleKey<Archetype> EntityManager::InternalState::restrictArchetype(const Arche
 }
 
 
-// TODO move to the ArchetypeStore
 template <class F_maker>
 HandleKey<Archetype> EntityManager::InternalState::makeArchetypeIfAbsent(const TypeSet & aTargetTypeSet,
                                                                       F_maker && aMakeCallback)
