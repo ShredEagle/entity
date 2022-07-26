@@ -26,10 +26,6 @@ public:
     template <class... VT_components>
     static Handle<Archetype> getArchetypeHandle(EntityManager & aEntityManager)
     { return aEntityManager.getArchetypeHandle(getTypeSet<VT_components...>()); }
-
-    template <class... VT_components>
-    static Archetype & getArchetype(EntityManager & aEntityManager)
-    { return aEntityManager.archetype(getArchetypeHandle<VT_components...>(aEntityManager)); }
 };
 
 
@@ -106,7 +102,7 @@ SCENARIO("Components adding and removing.")
         EntityManager world;
 
         Handle<Entity> h1 = world.addEntity();
-        // The default empty archetype becomes present as soon as one entity was added
+        // The default empty archetype must exist by this time.
         REQUIRE(Inspector<EntityManager>::countArchetypes(world) == 1);
 
         WHEN("A component (A) is added.")
@@ -434,7 +430,7 @@ SCENARIO("Components duplication.")
                 THEN("The component was stored only once.")
                 {
                     Archetype & archetype =
-                        Inspector<EntityManager>::getArchetype<ComponentA>(world);
+                        Inspector<EntityManager>::getArchetypeHandle<ComponentA>(world).get();
                     CHECK(archetype.countEntities() == 1);
                     CHECK(archetype.verifyConsistency());
                 }
@@ -465,7 +461,7 @@ SCENARIO("Components duplication.")
                     THEN("The component was stored only once.")
                     {
                         Archetype & archetype =
-                            Inspector<EntityManager>::getArchetype<ComponentA>(world);
+                            Inspector<EntityManager>::getArchetypeHandle<ComponentA>(world).get();
                         CHECK(archetype.countEntities() == 1);
                         CHECK(archetype.verifyConsistency());
                     }
@@ -533,7 +529,7 @@ SCENARIO("Components multiple delete.")
                 THEN("The component was stored only once.")
                 {
                     Archetype & archetype =
-                        Inspector<EntityManager>::getArchetype<ComponentA>(world);
+                        Inspector<EntityManager>::getArchetypeHandle<ComponentA>(world).get();
                     CHECK(archetype.countEntities() == 1);
                     CHECK(archetype.verifyConsistency());
                 }
@@ -576,7 +572,7 @@ SCENARIO("Components multiple delete.")
                     THEN("The component is not stored in the Archetype.")
                     {
                         Archetype & archetype =
-                            Inspector<EntityManager>::getArchetype<ComponentA>(world);
+                            Inspector<EntityManager>::getArchetypeHandle<ComponentA>(world).get();
                         CHECK(archetype.countEntities() == 0);
                         CHECK(archetype.verifyConsistency());
                     }
@@ -603,7 +599,7 @@ SCENARIO("Components multiple delete.")
                     THEN("The component is not stored in the Archetype.")
                     {
                         Archetype & archetype =
-                            Inspector<EntityManager>::getArchetype<ComponentA>(world);
+                            Inspector<EntityManager>::getArchetypeHandle<ComponentA>(world).get();
                         CHECK(archetype.countEntities() == 0);
                         CHECK(archetype.verifyConsistency());
                     }
@@ -634,7 +630,7 @@ SCENARIO("Erasing entities remove corresponding components from archetypes.")
             }
 
             Archetype & archetype =
-                Inspector<EntityManager>::getArchetype<ComponentB>(world);
+                Inspector<EntityManager>::getArchetypeHandle<ComponentB>(world).get();
             REQUIRE(archetype.countEntities() == 2);
 
             WHEN("The first entity is erased.")
@@ -701,9 +697,11 @@ SCENARIO("Adding components to entities does not break other handles.")
                 h2.get(phase)->add<ComponentB>({secondB});
             }
 
-            // IMPORTANT: Do not save the direct reference to the archetype:
+            // IMPORTANT: Do not save the direct reference to the archetype, keep the handle:
             // It might expires as new archetypes as added to the store.
-            REQUIRE(Inspector<EntityManager>::getArchetype<ComponentB>(world).countEntities() == 2);
+            Handle<Archetype> archetypeB =
+                Inspector<EntityManager>::getArchetypeHandle<ComponentB>(world);
+            REQUIRE(archetypeB.get().countEntities() == 2);
 
             WHEN("A component (A) is added to the first entity.")
             {
@@ -714,7 +712,7 @@ SCENARIO("Adding components to entities does not break other handles.")
 
                 THEN("The archetype (B) is down to a single entry.")
                 {
-                    CHECK(Inspector<EntityManager>::getArchetype<ComponentB>(world).countEntities() == 1);
+                    CHECK(archetypeB.get().countEntities() == 1);
                 }
 
                 THEN("The handle to the second entity correctly accesses the second value.")
@@ -741,7 +739,7 @@ SCENARIO("Adding components to entities does not break other handles.")
 
                     THEN("The archetype (B) is empty.")
                     {
-                        CHECK(Inspector<EntityManager>::getArchetype<ComponentB>(world).countEntities() == 0);
+                        CHECK(archetypeB.get().countEntities() == 0);
                     }
 
                     THEN("The handle to the second entity correctly accesses both values.")
@@ -772,7 +770,7 @@ SCENARIO("Adding components to entities does not break other handles.")
 
                 THEN("The archetype (B) is down to a single entry.")
                 {
-                    CHECK(Inspector<EntityManager>::getArchetype<ComponentB>(world).countEntities() == 1);
+                    CHECK(archetypeB.get().countEntities() == 1);
                 }
 
                 THEN("The handle to the first entity correctly accesses the first value.")

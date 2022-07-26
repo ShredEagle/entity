@@ -24,29 +24,32 @@ class Handle; // forward
 template<>
 class Handle<Archetype>
 {
-    friend class ArchetypeStore;
-    // TODO should not be required
-    friend class EntityManager;
+    friend class EntityManager; // for construction
 
 public:
-    friend bool operator==(const Handle & aLhs, const Handle & aRhs)
-    {
-        return aLhs.mKey == aRhs.mKey;
-    }
+    Archetype & get();
 
+    // Note: unused for the moment
+    //friend bool operator==(const Handle & aLhs, const Handle & aRhs)
+    //{
+    //    assert(aLhs.mStore == aRhs.mStore);
+    //    return aLhs.mKey == aRhs.mKey;
+    //}
 
 private:
-    explicit Handle(std::size_t aKey) :
-        mKey{aKey}
+    Handle(std::size_t aKey, EntityManager & aManager) :
+        mKey{aKey},
+        mManager{aManager}
     {}
 
-    std::size_t mKey;
+    ArchetypeKey mKey;
+    EntityManager & mManager;
 };
 
 
 struct EntityRecord
 {
-    Handle<Archetype> mArchetype;
+    ArchetypeKey mArchetype;
     EntityIndex mIndex;
 };
 
@@ -58,9 +61,7 @@ struct EntityReference
 };
 
 
-/// \brief This class allows to stack-up the operations to be
-/// deferred until the end of the phase.
-///
+/// \brief This class allows to stack-up the operations to be deferred until the end of the phase.
 class Phase
 {
 public:

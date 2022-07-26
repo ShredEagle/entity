@@ -8,9 +8,10 @@ namespace ad {
 namespace ent {
 
 
-Handle<Archetype> EntityManager::InternalState::getArchetypeHandle(const TypeSet & aTypeSet)
+Handle<Archetype> EntityManager::InternalState::getArchetypeHandle(const TypeSet & aTypeSet,
+                                                                   EntityManager & aManager)
 {
-    return mArchetypes.getHandle(aTypeSet);
+    return {mArchetypes.getKey(aTypeSet), aManager};
 }
 
 
@@ -31,7 +32,7 @@ EntityRecord & EntityManager::InternalState::record(HandleKey aKey)
 }
 
 
-Archetype & EntityManager::InternalState::archetype(Handle<Archetype> aHandle)
+Archetype & EntityManager::InternalState::archetype(ArchetypeKey aHandle)
 {
     return mArchetypes.get(aHandle);
 }

@@ -26,6 +26,12 @@ void Entity::erase()
 }
 
 
+Archetype & Handle<Archetype>::get()
+{
+    return mManager.archetype(mKey);
+}
+
+
 bool Handle<Entity>::isValid() const
 {
     EntityRecord current = record();

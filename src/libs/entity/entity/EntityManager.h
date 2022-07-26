@@ -21,9 +21,9 @@ namespace ent {
 class EntityManager
 {
     friend class Archetype;
+    friend class Handle<Archetype>;
     friend class Handle<Entity>;
-    template <class...>
-    friend class Query;
+    template <class...> friend class Query;
     friend class State;
 
     // To be implemented by the test application, allowing to access private parts.
@@ -40,16 +40,16 @@ class EntityManager
 
         std::size_t countLiveEntities() const;
 
-        Handle<Archetype> getArchetypeHandle(const TypeSet & aTypeSet);
+        Handle<Archetype> getArchetypeHandle(const TypeSet & aTypeSet, EntityManager & aManager);
 
         template <class T_component>
-        Handle<Archetype> extendArchetype(const Archetype & aArchetype);
+        ArchetypeKey extendArchetype(const Archetype & aArchetype);
 
         template <class T_component>
-        Handle<Archetype> restrictArchetype(const Archetype & aArchetype);
+        ArchetypeKey restrictArchetype(const Archetype & aArchetype);
 
         EntityRecord & record(HandleKey aKey);
-        Archetype & archetype(Handle<Archetype> aHandle);
+        Archetype & archetype(ArchetypeKey aHandle);
 
         void freeHandle(HandleKey aKey);
 
@@ -65,8 +65,8 @@ class EntityManager
 
     private:
         template <class F_maker>
-        Handle<Archetype> makeArchetypeIfAbsent(const TypeSet & aTargetTypeSet,
-                                                F_maker && aMakeCallback);
+        ArchetypeKey makeArchetypeIfAbsent(const TypeSet & aTargetTypeSet,
+                                           F_maker && aMakeCallback);
 
         // TODO Refactor with fewer higher level classes, this is turning into a super class.
         HandleKey mNextHandle;
@@ -87,7 +87,8 @@ public:
     //EntityManager();
 
     /// \warning Thread unsafe!
-    // TODO should be made thread safe (take a look at lock-free approaches)
+    // TODO #thread P1: should be made thread safe (take a look at lock-free approaches)
+    // because this operation is not deferred (so parallel jobs could be doing it concurrently)
     Handle<Entity> addEntity()
     { return mState.addEntity(*this); }
 
@@ -100,20 +101,20 @@ public:
 private:
     // Forward all externally used methods to state, so the state struct is hidden
     Handle<Archetype> getArchetypeHandle(const TypeSet & aTypeSet)
-    { return mState.getArchetypeHandle(aTypeSet); }
+    { return mState.getArchetypeHandle(aTypeSet, *this); }
 
     template <class T_component>
-    Handle<Archetype> extendArchetype(const Archetype & aArchetype)
+    ArchetypeKey extendArchetype(const Archetype & aArchetype)
     { return mState.extendArchetype<T_component>(aArchetype); }
 
     template <class T_component>
-    Handle<Archetype> restrictArchetype(const Archetype & aArchetype)
+    ArchetypeKey restrictArchetype(const Archetype & aArchetype)
     { return mState.restrictArchetype<T_component>(aArchetype); }
 
     EntityRecord & record(HandleKey aKey)
     { return mState.record(aKey); }
 
-    Archetype & archetype(Handle<Archetype> aHandle)
+    Archetype & archetype(ArchetypeKey aHandle)
     { return mState.archetype(aHandle); }
 
     void freeHandle(HandleKey aKey)
@@ -157,15 +158,15 @@ template <class T_component>
 void Handle<Entity>::add(T_component aComponent)
 {
     EntityRecord initialRecord = record();
-    Handle<Archetype> initialArchetypeHandle = initialRecord.mArchetype;
+    ArchetypeKey initialArchetypeKey = initialRecord.mArchetype;
 
-    Handle<Archetype> targetArchetypeHandle =
-        mManager.extendArchetype<T_component>(mManager.archetype(initialArchetypeHandle));
-    Archetype & targetArchetype = mManager.archetype(targetArchetypeHandle);
+    ArchetypeKey targetArchetypeKey =
+        mManager.extendArchetype<T_component>(mManager.archetype(initialArchetypeKey));
+    Archetype & targetArchetype = mManager.archetype(targetArchetypeKey);
 
     // The extend might have invalidate the archetype reference
     // So take it only now.
-    Archetype & initialArchetype = mManager.archetype(initialArchetypeHandle);
+    Archetype & initialArchetype = mManager.archetype(initialArchetypeKey);
 
     // The target archetype will grow by one: the size before insertion will be the inserted index.
     EntityIndex newIndex = targetArchetype.countEntities();
@@ -188,7 +189,7 @@ void Handle<Entity>::add(T_component aComponent)
     }
 
     EntityRecord newRecord{
-        .mArchetype = targetArchetypeHandle,
+        .mArchetype = targetArchetypeKey,
         .mIndex = newIndex,
     };
     updateRecord(newRecord);
@@ -207,13 +208,13 @@ template <class T_component>
 void Handle<Entity>::remove()
 {
     EntityRecord initialRecord = record();
-    Handle<Archetype> initialArchetypeHandle = initialRecord.mArchetype;
+    ArchetypeKey initialArchetypeKey = initialRecord.mArchetype;
 
-    Handle<Archetype> targetArchetypeHandle =
-        mManager.restrictArchetype<T_component>(mManager.archetype(initialArchetypeHandle));
-    Archetype & targetArchetype = mManager.archetype(targetArchetypeHandle);
+    ArchetypeKey targetArchetypeKey =
+        mManager.restrictArchetype<T_component>(mManager.archetype(initialArchetypeKey));
+    Archetype & targetArchetype = mManager.archetype(targetArchetypeKey);
 
-    Archetype & initialArchetype = mManager.archetype(initialArchetypeHandle);
+    Archetype & initialArchetype = mManager.archetype(initialArchetypeKey);
     // Notify the query backends that match source archetype, but not target archetype,
     // that the entity is being removed.
     auto removedBackends = mManager.getExtraQueryBackends(initialArchetype, targetArchetype);
@@ -234,7 +235,7 @@ void Handle<Entity>::remove()
     }
 
     EntityRecord newRecord{
-        .mArchetype = targetArchetypeHandle,
+        .mArchetype = targetArchetypeKey,
         .mIndex = newIndex,
     };
     updateRecord(newRecord);
@@ -244,7 +245,7 @@ void Handle<Entity>::remove()
 inline Handle<Entity> EntityManager::InternalState::addEntity(EntityManager & aManager)
 {
     // We know the empty archetype is first in the vector
-    std::pair<Archetype &, Handle<Archetype>> empty =  mArchetypes.getEmptyArchetype();
+    std::pair<Archetype &, ArchetypeKey> empty =  mArchetypes.getEmptyArchetype();
 
     mHandleMap.insert_or_assign(
         mNextHandle,
@@ -262,7 +263,7 @@ inline Handle<Entity> EntityManager::InternalState::addEntity(EntityManager & aM
 
 
 template <class T_component>
-Handle<Archetype> EntityManager::InternalState::extendArchetype(const Archetype & aArchetype)
+ArchetypeKey EntityManager::InternalState::extendArchetype(const Archetype & aArchetype)
 {
     TypeSet targetTypeSet{aArchetype.getTypeSet()};
     targetTypeSet.insert(getId<T_component>());
@@ -274,7 +275,7 @@ Handle<Archetype> EntityManager::InternalState::extendArchetype(const Archetype 
 
 
 template <class T_component>
-Handle<Archetype> EntityManager::InternalState::restrictArchetype(const Archetype & aArchetype)
+ArchetypeKey EntityManager::InternalState::restrictArchetype(const Archetype & aArchetype)
 {
     TypeSet targetTypeSet{aArchetype.getTypeSet()};
     targetTypeSet.erase(getId<T_component>());
@@ -287,7 +288,7 @@ Handle<Archetype> EntityManager::InternalState::restrictArchetype(const Archetyp
 
 // TODO move to the ArchetypeStore
 template <class F_maker>
-Handle<Archetype> EntityManager::InternalState::makeArchetypeIfAbsent(const TypeSet & aTargetTypeSet,
+ArchetypeKey EntityManager::InternalState::makeArchetypeIfAbsent(const TypeSet & aTargetTypeSet,
                                                                       F_maker && aMakeCallback)
 {
     auto [handle, didInsert] =
