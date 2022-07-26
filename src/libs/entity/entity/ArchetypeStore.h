@@ -30,9 +30,9 @@ public:
     Handle<Archetype> getHandle(TypeSet aTypeSet);
 
     auto beginMap() const
-    { return mArchetypes.begin(); }
+    { return mTypeSetToArchetype.begin(); }
     auto endMap() const
-    { return mArchetypes.end(); }
+    { return mTypeSetToArchetype.end(); }
 
     auto size() const
     { return mHandleToArchetype.size(); }
@@ -45,7 +45,7 @@ private:
     inline static const TypeSet gEmptyTypeSet{};
 
     std::vector<Archetype> mHandleToArchetype{Archetype{}};
-    std::map<TypeSet, ArchetypeRecord> mArchetypes{
+    std::map<TypeSet, ArchetypeRecord> mTypeSetToArchetype{
         {
             gEmptyTypeSet,
             {Handle<Archetype>{0}}
@@ -76,7 +76,7 @@ inline const Archetype & ArchetypeStore::get(Handle<Archetype> aHandle) const
 
 inline Handle<Archetype> ArchetypeStore::getHandle(TypeSet aTypeSet)
 {
-    return mArchetypes.at(aTypeSet).mHandle;
+    return mTypeSetToArchetype.at(aTypeSet).mHandle;
 }
 
 
@@ -84,8 +84,8 @@ template <class F_maker>
 std::pair<Handle<Archetype>, bool> ArchetypeStore::makeIfAbsent(const TypeSet & aTargetTypeSet,
                                                                 F_maker aMakeCallback)
 {
-    if (auto found = mArchetypes.find(aTargetTypeSet);
-        found != mArchetypes.end())
+    if (auto found = mTypeSetToArchetype.find(aTargetTypeSet);
+        found != mTypeSetToArchetype.end())
     {
         return {found->second.mHandle, false};
     }
@@ -93,7 +93,7 @@ std::pair<Handle<Archetype>, bool> ArchetypeStore::makeIfAbsent(const TypeSet & 
     {
         std::size_t insertedPosition = mHandleToArchetype.size();
         mHandleToArchetype.push_back(aMakeCallback());
-        ArchetypeRecord inserted = mArchetypes.emplace(
+        ArchetypeRecord inserted = mTypeSetToArchetype.emplace(
             aTargetTypeSet,
             ArchetypeRecord{
                 Handle<Archetype>{insertedPosition}
