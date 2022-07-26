@@ -1,8 +1,9 @@
 #pragma once
 
 
-#include <entity/Entity.h>
 #include <entity/Archetype.h>
+#include <entity/ArchetypeStore.h>
+#include <entity/Entity.h>
 
 #include <algorithm>
 #include <list>
@@ -18,7 +19,9 @@ class QueryBackendBase
 public:
     virtual ~QueryBackendBase() = default;
 
-    virtual void pushIfMatches(const TypeSet & aCandidateTypeSet, Archetype & aCandidate) = 0;
+    virtual void pushIfMatches(const TypeSet & aCandidateTypeSet,
+                               Handle<Archetype> aCandidate,
+                               const ArchetypeStore & aStore) = 0;
     virtual void signalEntityAdded(Handle<Entity> aEntity, const EntityRecord & aRecord) = 0;
     virtual void signalEntityRemoved(Handle<Entity> aEntity, const EntityRecord & aRecord) = 0;
 };
@@ -68,9 +71,9 @@ class QueryBackend : public QueryBackendBase
 public:
     struct MatchedArchetype
     {
-        MatchedArchetype(Archetype * aArchetype);
+        MatchedArchetype(Handle<Archetype> aArchetype, const ArchetypeStore & aStore);
 
-        Archetype * mArchetype;
+        Handle<Archetype> mArchetype;
         // IMPORTANT: Cannot cache the pointer to components' storage
         // because the storage is currently a vector (i.e. prone to relocation)
         // This would also complicate the frame-state implementation.
@@ -81,8 +84,7 @@ public:
     using AddedEntityCallback = std::function<void(VT_components &...)>;
     using RemovedEntityCallback = std::function<void(VT_components &...)>;
 
-    template <class T_pairIterator>
-    QueryBackend(T_pairIterator aFirst, T_pairIterator aLast);
+    QueryBackend(const ArchetypeStore & aArchetypes);
 
     template <class F_function>
     Listening listenEntityAdded(F_function && aCallback);
@@ -90,7 +92,9 @@ public:
     template <class F_function>
     Listening listenEntityRemoved(F_function && aCallback);
 
-    void pushIfMatches(const TypeSet & aCandidateTypeSet, Archetype & aCandidate) final;
+    void pushIfMatches(const TypeSet & aCandidateTypeSet,
+                       Handle<Archetype> aCandidate,
+                       const ArchetypeStore & aStore) final;
 
     void signalEntityAdded(Handle<Entity> aEntity, const EntityRecord & aRecord) final;
 
@@ -113,10 +117,11 @@ public:
 /// \brief Invoke a callback on a matched archetype, for a given entity in the archetype.
 template <class... VT_components, class F_callback>
 void invoke(F_callback aCallback,
+            Archetype & aArchetype,
             const typename QueryBackend<VT_components...>::MatchedArchetype & aMatch,
             EntityIndex aIndexInArchetype)
 {
-    aCallback(aMatch.mArchetype->getStorage(
+    aCallback(aArchetype.getStorage(
                 std::get<StorageIndex<VT_components>>(aMatch.mComponentIndices))
                     .mArray[aIndexInArchetype]...);
 }
@@ -127,25 +132,21 @@ void invoke(F_callback aCallback,
 //
 
 template <class... VT_components>
-QueryBackend<VT_components...>::MatchedArchetype::MatchedArchetype(Archetype * aArchetype) :
+QueryBackend<VT_components...>::MatchedArchetype::MatchedArchetype(
+        Handle<Archetype> aArchetype,
+        const ArchetypeStore & aStore) :
     mArchetype{aArchetype},
-    mComponentIndices{mArchetype->getStoreIndex<VT_components>()...}
+    mComponentIndices{aStore.get(mArchetype).getStoreIndex<VT_components>()...}
 {}
 
 
 template <class... VT_components>
-template <class T_pairIterator>
-QueryBackend<VT_components...>::QueryBackend(T_pairIterator aFirst, T_pairIterator aLast)
+QueryBackend<VT_components...>::QueryBackend(const ArchetypeStore & aArchetypes)
 {
-    for(/**/; aFirst != aLast; ++aFirst)
+    for(auto mapping = aArchetypes.beginMap(); mapping != aArchetypes.endMap(); ++mapping)
     {
-        // TODO The entity manager has the typeset information ready, so it should be forwarded
-        // here instead of re-computed.
-        // The problem is that the map<TypeSet, Handle> only has the handle, not the archetype,
-        // so we use the vector of archetypes instead.
-        Archetype & archetype = *aFirst;
-        TypeSet typeSet = archetype.getTypeSet();
-        pushIfMatches(typeSet, archetype);
+        const auto & [typeSet, archetypeHandle] = *mapping;
+        pushIfMatches(typeSet, archetypeHandle.mHandle, aArchetypes);
     }
 }
 
@@ -178,12 +179,13 @@ Listening QueryBackend<VT_components...>::listenEntityRemoved(F_function && aCal
 
 template <class... VT_components>
 void QueryBackend<VT_components...>::pushIfMatches(const TypeSet & aCandidateTypeSet,
-                                                   Archetype & aCandidate)
+                                                   Handle<Archetype> aCandidate,
+                                                   const ArchetypeStore & aStore)
 {
     if(std::includes(aCandidateTypeSet.begin(), aCandidateTypeSet.end(),
                      GetTypeSet().begin(), GetTypeSet().end()))
     {
-        mMatchingArchetypes.push_back(&aCandidate);
+        mMatchingArchetypes.emplace_back(aCandidate, aStore);
     }
 }
 
@@ -214,15 +216,18 @@ void QueryBackend<VT_components...>::signal_impl(
                      mMatchingArchetypes.end(),
                      [&aRecord, &aEntity](const auto & aMatch) -> bool
                      {
-                       return aMatch.mArchetype == &aEntity.archetype();
+                       return aMatch.mArchetype == aEntity.record().mArchetype;
                      });
 
+    // TODO: Can be more efficient, we already have the EntityRecord.
+    Archetype & archetype = aEntity.archetype();
+
     assert(found != mMatchingArchetypes.end());
-    assert(aRecord.mIndex < found->mArchetype->countEntities());
+    assert(aRecord.mIndex < archetype.countEntities());
 
     for(auto & callback : aListeners)
     {
-        invoke<VT_components...>(callback, *found, aRecord.mIndex);
+        invoke<VT_components...>(callback, archetype, *found, aRecord.mIndex);
     }
 }
 

@@ -178,7 +178,7 @@ public:
 
     // TODO should not be public, this is an implementation detail for queries
     template <class T_component>
-    StorageIndex<T_component> getStoreIndex();
+    StorageIndex<T_component> getStoreIndex() const;
 
     template <class T_component>
     Storage<T_component> & getStorage(StorageIndex<T_component> aComponentIndex);
@@ -334,7 +334,7 @@ EntityIndex Archetype::push(T_component aComponent)
 
 
 template <class T_component>
-StorageIndex<T_component> Archetype::getStoreIndex()
+StorageIndex<T_component> Archetype::getStoreIndex() const
 {
     for(std::size_t storeId = 0; storeId != mType.size(); ++storeId)
     {

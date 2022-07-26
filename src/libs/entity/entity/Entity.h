@@ -24,10 +24,19 @@ class Handle; // forward
 template<>
 class Handle<Archetype>
 {
+    friend class ArchetypeStore;
+    // TODO should not be required
     friend class EntityManager;
 
+public:
+    friend bool operator==(const Handle & aLhs, const Handle & aRhs)
+    {
+        return aLhs.mKey == aRhs.mKey;
+    }
+
+
 private:
-    Handle(std::size_t aKey) :
+    explicit Handle(std::size_t aKey) :
         mKey{aKey}
     {}
 
@@ -142,6 +151,12 @@ public:
 
     /// \important This handle must outlive the returned Entity.
     std::optional<Entity> get(Phase & aPhase);
+
+    friend bool operator==(const Handle & aLhs, const Handle & aRhs)
+    {
+        assert (&aLhs.mManager == &aRhs.mManager);
+        return aLhs.mKey == aRhs.mKey;
+    }
 
 private:
     Handle(HandleKey aKey, EntityManager & aManager) :

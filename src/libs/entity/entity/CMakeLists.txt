@@ -2,6 +2,7 @@ set(TARGET_NAME entity)
 
 set(${TARGET_NAME}_HEADERS
     Archetype.h
+    ArchetypeStore.h
     Component.h
     Entity.h
     EntityManager.h
@@ -13,6 +14,7 @@ set(${TARGET_NAME}_HEADERS
 
 set(${TARGET_NAME}_SOURCES
     Archetype.cpp
+    ArchetypeStore.cpp
     Entity.cpp
     EntityManager.cpp
     Query.cpp

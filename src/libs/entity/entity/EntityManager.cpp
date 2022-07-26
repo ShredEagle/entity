@@ -8,9 +8,9 @@ namespace ad {
 namespace ent {
 
 
-Archetype & EntityManager::InternalState::getArchetype(const TypeSet & aTypeSet)
+Handle<Archetype> EntityManager::InternalState::getArchetypeHandle(const TypeSet & aTypeSet)
 {
-    return archetype(mArchetypes.at(aTypeSet).mHandle);
+    return mArchetypes.getHandle(aTypeSet);
 }
 
 
@@ -33,10 +33,7 @@ EntityRecord & EntityManager::InternalState::record(HandleKey aKey)
 
 Archetype & EntityManager::InternalState::archetype(Handle<Archetype> aHandle)
 {
-    // TODO implement checks:
-    // * that the generation is matching
-    // * that the record is still there? (or is it a responsibility of the client to check for nullptr?)
-    return mHandleToArchetype.at(aHandle.mKey);
+    return mArchetypes.get(aHandle);
 }
 
 

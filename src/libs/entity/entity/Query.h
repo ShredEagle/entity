@@ -41,12 +41,22 @@ public:
     void onRemoveEntity(F_function && aCallback);
 
 private:
-    const std::vector<
-        typename detail::QueryBackend<VT_components...>::MatchedArchetype> & matches() const
+    using Matched_t = typename detail::QueryBackend<VT_components...>::MatchedArchetype;
+    const std::vector<Matched_t> & matches() const
     { return mSharedBackend->mMatchingArchetypes; }
+
+    Archetype & getArchetype(const Matched_t & aMatch)
+    { return mManager.archetype(aMatch.mArchetype); }
+
+    const Archetype & getArchetype(const Matched_t & aMatch) const
+    { return mManager.archetype(aMatch.mArchetype); }
+
 
     detail::QueryBackend<VT_components...>* mSharedBackend;
     std::vector<detail::Listening> mActiveListenings;
+
+    // TODO can it be removed? Or made const?
+    EntityManager & mManager;
 };
 
 
@@ -55,7 +65,8 @@ private:
 //
 template <class... VT_components>
 Query<VT_components...>::Query(EntityManager & aManager) :
-    mSharedBackend{aManager.getQueryBackend<VT_components...>()}
+    mSharedBackend{aManager.getQueryBackend<VT_components...>()},
+    mManager{aManager}
 {}
 
 
@@ -63,9 +74,10 @@ template <class... VT_components>
 std::size_t Query<VT_components...>::countMatches() const
 {
     return std::accumulate(matches().begin(), matches().end(),
-                           0, [](std::size_t accu, const auto & matched)
+                           0,
+                           [this](std::size_t accu, const auto & matched)
                            {
-                                return accu + matched.mArchetype->countEntities();
+                                return accu + getArchetype(matched).countEntities();
                            });
 }
 
@@ -76,9 +88,17 @@ void Query<VT_components...>::each(F_function && aCallback)
 {
     for(const auto & match : matches())
     {
-        for(std::size_t entityId = 0; entityId != match.mArchetype->countEntities(); ++entityId)
+        // Note: The reference remains valid for the loop, because all operations
+        // which could potentially invalidate it (such as adding a new archetype)
+        // are deferred until the end of the phase.
+        Archetype & archetype = getArchetype(match);
+        for(std::size_t entityId = 0; entityId != archetype.countEntities(); ++entityId)
         {
-            detail::invoke<VT_components...>(std::forward<F_function>(aCallback), match, entityId);
+            detail::invoke<VT_components...>(
+                    std::forward<F_function>(aCallback),
+                    archetype,
+                    match,
+                    entityId);
         }
     }
 }
