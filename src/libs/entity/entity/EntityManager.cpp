@@ -23,7 +23,7 @@ std::size_t EntityManager::InternalState::countLiveEntities() const
 }
 
 
-EntityRecord & EntityManager::InternalState::record(HandleKey aKey)
+EntityRecord & EntityManager::InternalState::record(HandleKey<Entity> aKey)
 {
     // TODO implement checks:
     // * that the generation is matching
@@ -32,13 +32,13 @@ EntityRecord & EntityManager::InternalState::record(HandleKey aKey)
 }
 
 
-Archetype & EntityManager::InternalState::archetype(ArchetypeKey aHandle)
+Archetype & EntityManager::InternalState::archetype(HandleKey<Archetype> aHandle)
 {
     return mArchetypes.get(aHandle);
 }
 
 
-void EntityManager::InternalState::freeHandle(HandleKey aKey)
+void EntityManager::InternalState::freeHandle(HandleKey<Entity> aKey)
 {
     record(aKey).mIndex = gInvalidIndex;
     mFreedHandles.push_back(std::move(aKey));

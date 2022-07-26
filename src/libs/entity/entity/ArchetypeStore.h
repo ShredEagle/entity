@@ -3,6 +3,7 @@
 
 #include "Archetype.h"
 #include "Entity.h"
+#include "entity/HandleKey.h"
 
 #include <map>
 #include <vector>
@@ -15,12 +16,12 @@ namespace ent {
 class ArchetypeStore
 {
 public:
-    std::pair<Archetype &, ArchetypeKey> getEmptyArchetype();
+    std::pair<Archetype &, HandleKey<Archetype>> getEmptyArchetype();
 
-    Archetype & get(ArchetypeKey aKey);
-    const Archetype & get(ArchetypeKey aKey) const;
+    Archetype & get(HandleKey<Archetype> aKey);
+    const Archetype & get(HandleKey<Archetype> aKey) const;
 
-    ArchetypeKey getKey(TypeSet aTypeSet);
+    HandleKey<Archetype> getKey(TypeSet aTypeSet);
 
     auto beginMap() const
     { return mTypeSetToArchetype.begin(); }
@@ -31,14 +32,14 @@ public:
     { return mHandleToArchetype.size(); }
 
     template <class F_maker>
-    std::pair<ArchetypeKey, bool> makeIfAbsent(const TypeSet & aTargetTypeSet,
+    std::pair<HandleKey<Archetype>, bool> makeIfAbsent(const TypeSet & aTargetTypeSet,
                                                F_maker aMakeCallback);
 
 private:
     inline static const TypeSet gEmptyTypeSet{};
 
     std::vector<Archetype> mHandleToArchetype{Archetype{}};
-    std::map<TypeSet, HandleKey> mTypeSetToArchetype{
+    std::map<TypeSet, HandleKey<Archetype>> mTypeSetToArchetype{
         {
             gEmptyTypeSet,
             {}
@@ -47,7 +48,7 @@ private:
 };
 
 
-inline std::pair<Archetype &, ArchetypeKey> ArchetypeStore::getEmptyArchetype()
+inline std::pair<Archetype &, HandleKey<Archetype>> ArchetypeStore::getEmptyArchetype()
 {
     return {
         mHandleToArchetype[0],
@@ -56,25 +57,25 @@ inline std::pair<Archetype &, ArchetypeKey> ArchetypeStore::getEmptyArchetype()
 }
 
 
-inline Archetype & ArchetypeStore::get(ArchetypeKey aKey)
+inline Archetype & ArchetypeStore::get(HandleKey<Archetype> aKey)
 {
     return mHandleToArchetype.at(aKey);
 }
 
-inline const Archetype & ArchetypeStore::get(ArchetypeKey aKey) const
+inline const Archetype & ArchetypeStore::get(HandleKey<Archetype> aKey) const
 {
     return mHandleToArchetype.at(aKey);
 }
 
 
-inline ArchetypeKey ArchetypeStore::getKey(TypeSet aTypeSet)
+inline HandleKey<Archetype> ArchetypeStore::getKey(TypeSet aTypeSet)
 {
     return mTypeSetToArchetype.at(aTypeSet);
 }
 
 
 template <class F_maker>
-std::pair<ArchetypeKey, bool> ArchetypeStore::makeIfAbsent(const TypeSet & aTargetTypeSet,
+std::pair<HandleKey<Archetype>, bool> ArchetypeStore::makeIfAbsent(const TypeSet & aTargetTypeSet,
                                                                 F_maker aMakeCallback)
 {
     if (auto found = mTypeSetToArchetype.find(aTargetTypeSet);
@@ -86,9 +87,9 @@ std::pair<ArchetypeKey, bool> ArchetypeStore::makeIfAbsent(const TypeSet & aTarg
     {
         std::size_t insertedPosition = mHandleToArchetype.size();
         mHandleToArchetype.push_back(aMakeCallback());
-        ArchetypeKey inserted = mTypeSetToArchetype.emplace(
+        HandleKey<Archetype> inserted = mTypeSetToArchetype.emplace(
             aTargetTypeSet,
-            ArchetypeKey{insertedPosition})
+            HandleKey<Archetype>{insertedPosition})
             .first->second;
         return {inserted, true};
     }

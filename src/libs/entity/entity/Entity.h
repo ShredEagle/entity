@@ -42,14 +42,14 @@ private:
         mManager{aManager}
     {}
 
-    ArchetypeKey mKey;
+    HandleKey<Archetype> mKey;
     EntityManager & mManager;
 };
 
 
 struct EntityRecord
 {
-    ArchetypeKey mArchetype;
+    HandleKey<Archetype> mArchetype;
     EntityIndex mIndex;
 };
 
@@ -160,7 +160,7 @@ public:
     }
 
 private:
-    Handle(HandleKey aKey, EntityManager & aManager) :
+    Handle(HandleKey<Entity> aKey, EntityManager & aManager) :
         mKey{aKey},
         mManager{aManager}
     {}
@@ -188,7 +188,7 @@ private:
 
     void updateRecord(EntityRecord aNewRecord);
 
-    HandleKey mKey;
+    HandleKey<Entity> mKey;
     EntityManager & mManager;
 };
 

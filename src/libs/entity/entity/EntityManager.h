@@ -43,15 +43,15 @@ class EntityManager
         Handle<Archetype> getArchetypeHandle(const TypeSet & aTypeSet, EntityManager & aManager);
 
         template <class T_component>
-        ArchetypeKey extendArchetype(const Archetype & aArchetype);
+        HandleKey<Archetype> extendArchetype(const Archetype & aArchetype);
 
         template <class T_component>
-        ArchetypeKey restrictArchetype(const Archetype & aArchetype);
+        HandleKey<Archetype> restrictArchetype(const Archetype & aArchetype);
 
-        EntityRecord & record(HandleKey aKey);
-        Archetype & archetype(ArchetypeKey aHandle);
+        EntityRecord & record(HandleKey<Entity> aKey);
+        Archetype & archetype(HandleKey<Archetype> aHandle);
 
-        void freeHandle(HandleKey aKey);
+        void freeHandle(HandleKey<Entity> aKey);
 
         template <class... VT_components>
         detail::QueryBackend<VT_components...> * getQueryBackend();
@@ -65,13 +65,13 @@ class EntityManager
 
     private:
         template <class F_maker>
-        ArchetypeKey makeArchetypeIfAbsent(const TypeSet & aTargetTypeSet,
+        HandleKey<Archetype> makeArchetypeIfAbsent(const TypeSet & aTargetTypeSet,
                                            F_maker && aMakeCallback);
 
         // TODO Refactor with fewer higher level classes, this is turning into a super class.
-        HandleKey mNextHandle;
-        std::map<HandleKey, EntityRecord> mHandleMap;
-        std::deque<HandleKey> mFreedHandles;
+        HandleKey<Entity> mNextHandle;
+        std::map<HandleKey<Entity>, EntityRecord> mHandleMap;
+        std::deque<HandleKey<Entity>> mFreedHandles;
 
         ArchetypeStore mArchetypes;
 
@@ -104,20 +104,20 @@ private:
     { return mState.getArchetypeHandle(aTypeSet, *this); }
 
     template <class T_component>
-    ArchetypeKey extendArchetype(const Archetype & aArchetype)
+    HandleKey<Archetype> extendArchetype(const Archetype & aArchetype)
     { return mState.extendArchetype<T_component>(aArchetype); }
 
     template <class T_component>
-    ArchetypeKey restrictArchetype(const Archetype & aArchetype)
+    HandleKey<Archetype> restrictArchetype(const Archetype & aArchetype)
     { return mState.restrictArchetype<T_component>(aArchetype); }
 
-    EntityRecord & record(HandleKey aKey)
+    EntityRecord & record(HandleKey<Entity> aKey)
     { return mState.record(aKey); }
 
-    Archetype & archetype(ArchetypeKey aHandle)
+    Archetype & archetype(HandleKey<Archetype> aHandle)
     { return mState.archetype(aHandle); }
 
-    void freeHandle(HandleKey aKey)
+    void freeHandle(HandleKey<Entity> aKey)
     { return mState.freeHandle(aKey); }
 
     template <class... VT_components>
@@ -158,9 +158,9 @@ template <class T_component>
 void Handle<Entity>::add(T_component aComponent)
 {
     EntityRecord initialRecord = record();
-    ArchetypeKey initialArchetypeKey = initialRecord.mArchetype;
+    HandleKey<Archetype> initialArchetypeKey = initialRecord.mArchetype;
 
-    ArchetypeKey targetArchetypeKey =
+    HandleKey<Archetype> targetArchetypeKey =
         mManager.extendArchetype<T_component>(mManager.archetype(initialArchetypeKey));
     Archetype & targetArchetype = mManager.archetype(targetArchetypeKey);
 
@@ -208,9 +208,9 @@ template <class T_component>
 void Handle<Entity>::remove()
 {
     EntityRecord initialRecord = record();
-    ArchetypeKey initialArchetypeKey = initialRecord.mArchetype;
+    HandleKey<Archetype> initialArchetypeKey = initialRecord.mArchetype;
 
-    ArchetypeKey targetArchetypeKey =
+    HandleKey<Archetype> targetArchetypeKey =
         mManager.restrictArchetype<T_component>(mManager.archetype(initialArchetypeKey));
     Archetype & targetArchetype = mManager.archetype(targetArchetypeKey);
 
@@ -245,7 +245,7 @@ void Handle<Entity>::remove()
 inline Handle<Entity> EntityManager::InternalState::addEntity(EntityManager & aManager)
 {
     // We know the empty archetype is first in the vector
-    std::pair<Archetype &, ArchetypeKey> empty =  mArchetypes.getEmptyArchetype();
+    std::pair<Archetype &, HandleKey<Archetype>> empty =  mArchetypes.getEmptyArchetype();
 
     mHandleMap.insert_or_assign(
         mNextHandle,
@@ -254,7 +254,7 @@ inline Handle<Entity> EntityManager::InternalState::addEntity(EntityManager & aM
             empty.first.countEntities(),
         });
 
-    HandleKey key = mNextHandle++;
+    HandleKey<Entity> key = mNextHandle++;
     // Has to be done after taking the entity count as index, for the new EntityRecord.
     empty.first.pushKey(key);
 
@@ -263,7 +263,7 @@ inline Handle<Entity> EntityManager::InternalState::addEntity(EntityManager & aM
 
 
 template <class T_component>
-ArchetypeKey EntityManager::InternalState::extendArchetype(const Archetype & aArchetype)
+HandleKey<Archetype> EntityManager::InternalState::extendArchetype(const Archetype & aArchetype)
 {
     TypeSet targetTypeSet{aArchetype.getTypeSet()};
     targetTypeSet.insert(getId<T_component>());
@@ -275,7 +275,7 @@ ArchetypeKey EntityManager::InternalState::extendArchetype(const Archetype & aAr
 
 
 template <class T_component>
-ArchetypeKey EntityManager::InternalState::restrictArchetype(const Archetype & aArchetype)
+HandleKey<Archetype> EntityManager::InternalState::restrictArchetype(const Archetype & aArchetype)
 {
     TypeSet targetTypeSet{aArchetype.getTypeSet()};
     targetTypeSet.erase(getId<T_component>());
@@ -288,7 +288,7 @@ ArchetypeKey EntityManager::InternalState::restrictArchetype(const Archetype & a
 
 // TODO move to the ArchetypeStore
 template <class F_maker>
-ArchetypeKey EntityManager::InternalState::makeArchetypeIfAbsent(const TypeSet & aTargetTypeSet,
+HandleKey<Archetype> EntityManager::InternalState::makeArchetypeIfAbsent(const TypeSet & aTargetTypeSet,
                                                                       F_maker && aMakeCallback)
 {
     auto [handle, didInsert] =

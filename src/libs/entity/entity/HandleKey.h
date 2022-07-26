@@ -7,6 +7,8 @@ namespace ad {
 namespace ent {
 
 
+/// \note The class argument is intended to have distinct types depending of what is handled.
+template <class>
 class HandleKey
 {
 public:
@@ -29,9 +31,6 @@ public:
 private:
     std::size_t mIndex{0};
 };
-
-
-using ArchetypeKey = HandleKey;
 
 
 } // namespace ent

@@ -14,6 +14,8 @@ namespace ad {
 namespace ent {
 
 
+class Entity; // forward
+
 template <class>
 class Storage;
 
@@ -173,7 +175,7 @@ public:
     EntityIndex push(T_component aComponent);
 
     /// \attention For use by the EntityManager on the empty archetype only.
-    void pushKey(HandleKey aKey)
+    void pushKey(HandleKey<Entity> aKey)
     { mHandles.push_back(aKey); }
 
     // TODO should not be public, this is an implementation detail for queries
@@ -190,7 +192,7 @@ private:
     std::vector<ComponentId> mType;
     DataStore mStores;
     // The handles of the entities stored in this archetype, in the same order than in each Store.
-    std::vector<HandleKey> mHandles;
+    std::vector<HandleKey<Entity>> mHandles;
 };
 
 

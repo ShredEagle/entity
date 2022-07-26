@@ -20,7 +20,7 @@ public:
     virtual ~QueryBackendBase() = default;
 
     virtual void pushIfMatches(const TypeSet & aCandidateTypeSet,
-                               ArchetypeKey aCandidate,
+                               HandleKey<Archetype> aCandidate,
                                const ArchetypeStore & aStore) = 0;
     virtual void signalEntityAdded(Handle<Entity> aEntity, const EntityRecord & aRecord) = 0;
     virtual void signalEntityRemoved(Handle<Entity> aEntity, const EntityRecord & aRecord) = 0;
@@ -71,9 +71,9 @@ class QueryBackend : public QueryBackendBase
 public:
     struct MatchedArchetype
     {
-        MatchedArchetype(ArchetypeKey aArchetype, const ArchetypeStore & aStore);
+        MatchedArchetype(HandleKey<Archetype> aArchetype, const ArchetypeStore & aStore);
 
-        ArchetypeKey mArchetype;
+        HandleKey<Archetype> mArchetype;
         // IMPORTANT: Cannot cache the pointer to components' storage
         // because the storage is currently a vector (i.e. prone to relocation)
         // This would also complicate the frame-state implementation.
@@ -93,7 +93,7 @@ public:
     Listening listenEntityRemoved(F_function && aCallback);
 
     void pushIfMatches(const TypeSet & aCandidateTypeSet,
-                       ArchetypeKey aCandidate,
+                       HandleKey<Archetype> aCandidate,
                        const ArchetypeStore & aStore) final;
 
     void signalEntityAdded(Handle<Entity> aEntity, const EntityRecord & aRecord) final;
@@ -133,7 +133,7 @@ void invoke(F_callback aCallback,
 
 template <class... VT_components>
 QueryBackend<VT_components...>::MatchedArchetype::MatchedArchetype(
-        ArchetypeKey aArchetype,
+        HandleKey<Archetype> aArchetype,
         const ArchetypeStore & aStore) :
     mArchetype{aArchetype},
     mComponentIndices{aStore.get(mArchetype).getStoreIndex<VT_components>()...}
@@ -179,7 +179,7 @@ Listening QueryBackend<VT_components...>::listenEntityRemoved(F_function && aCal
 
 template <class... VT_components>
 void QueryBackend<VT_components...>::pushIfMatches(const TypeSet & aCandidateTypeSet,
-                                                   ArchetypeKey aCandidate,
+                                                   HandleKey<Archetype> aCandidate,
                                                    const ArchetypeStore & aStore)
 {
     if(std::includes(aCandidateTypeSet.begin(), aCandidateTypeSet.end(),

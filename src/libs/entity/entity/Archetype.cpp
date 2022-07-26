@@ -103,7 +103,7 @@ void Archetype::remove(EntityIndex aEntityIndex, EntityManager & aManager)
     // Redirects the handle of the entity that will take the place of the removed entity
     {
         // This is the entity that will take the place of the removed entity in the stores.
-        HandleKey replacementEntity = mHandles.back();
+        HandleKey<Entity> replacementEntity = mHandles.back();
         // Overwrite with the same value if the replacement entity is the one at aEntityIndex
         // (i.e., if it was the last entity in the archetype).
         aManager.record(replacementEntity).mIndex = aEntityIndex;
