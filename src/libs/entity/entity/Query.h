@@ -76,7 +76,8 @@ void Query<VT_components...>::each(F_function && aCallback)
 {
     for(const auto & match : matches())
     {
-        for(std::size_t entityId = 0; entityId != match.mArchetype->countEntities(); ++entityId)
+        std::size_t size = match.mArchetype->countEntities();
+        for(std::size_t entityId = 0; entityId != size; ++entityId)
         {
             detail::invoke<VT_components...>(std::forward<F_function>(aCallback), match, entityId);
         }

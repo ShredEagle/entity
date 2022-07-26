@@ -13,15 +13,21 @@ std::size_t Archetype::countEntities() const
 
     // TODO implement level of assertion / way to disable.
     // All stores **have to** be of the same size.
-    for(auto storeIt = mStores.begin(); storeIt != mStores.end(); ++storeIt)
-    {
-        auto s = (*storeIt)->size();
-        assert(s == result);
-    }
+    assert(checkStoreSize());
 
     return result;
 }
 
+bool Archetype::checkStoreSize() const
+{
+    bool result = true;
+    for(auto storeIt = mStores.begin(); storeIt != mStores.end(); ++storeIt)
+    {
+        auto s = (*storeIt)->size();
+        result &= s == mHandles.size();
+    }
+    return result;
+}
 
 bool Archetype::verifyConsistency()
 {

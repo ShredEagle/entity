@@ -124,6 +124,8 @@ public:
 
     std::size_t countEntities() const;
 
+    bool checkStoreSize() const;
+
     template <class T_component>
     bool has() const;
 
