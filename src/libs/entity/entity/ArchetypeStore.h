@@ -21,9 +21,6 @@ struct ArchetypeRecord
 
 class ArchetypeStore
 {
-    // TODO should not be required... but currently is because of makeArchetypeIfAbsent()
-    friend class EntityManager;
-
 public:
     std::pair<Archetype &, Handle<Archetype>> getEmptyArchetype();
 
@@ -40,9 +37,9 @@ public:
     auto size() const
     { return mHandleToArchetype.size(); }
 
-    // TODO
-    //std::pair<Handle<Archetype>, bool> makeIfAbsent(const TypeSet & aTargetTypeSet,
-    //                                                F_maker aMakeCallback);
+    template <class F_maker>
+    std::pair<Handle<Archetype>, bool> makeIfAbsent(const TypeSet & aTargetTypeSet,
+                                                    F_maker aMakeCallback);
 
 private:
     inline static const TypeSet gEmptyTypeSet{};
@@ -80,6 +77,30 @@ inline const Archetype & ArchetypeStore::get(Handle<Archetype> aHandle) const
 inline Handle<Archetype> ArchetypeStore::getHandle(TypeSet aTypeSet)
 {
     return mArchetypes.at(aTypeSet).mHandle;
+}
+
+
+template <class F_maker>
+std::pair<Handle<Archetype>, bool> ArchetypeStore::makeIfAbsent(const TypeSet & aTargetTypeSet,
+                                                                F_maker aMakeCallback)
+{
+    if (auto found = mArchetypes.find(aTargetTypeSet);
+        found != mArchetypes.end())
+    {
+        return {found->second.mHandle, false};
+    }
+    else
+    {
+        std::size_t insertedPosition = mHandleToArchetype.size();
+        mHandleToArchetype.push_back(aMakeCallback());
+        ArchetypeRecord inserted = mArchetypes.emplace(
+            aTargetTypeSet,
+            ArchetypeRecord{
+                Handle<Archetype>{insertedPosition}
+            })
+            .first->second;
+        return {inserted.mHandle, true};
+    }
 }
 
 

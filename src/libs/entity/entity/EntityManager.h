@@ -43,10 +43,10 @@ class EntityManager
         Handle<Archetype> getArchetypeHandle(const TypeSet & aTypeSet);
 
         template <class T_component>
-        ArchetypeRecord extendArchetype(const Archetype & aArchetype);
+        Handle<Archetype> extendArchetype(const Archetype & aArchetype);
 
         template <class T_component>
-        ArchetypeRecord restrictArchetype(const Archetype & aArchetype);
+        Handle<Archetype> restrictArchetype(const Archetype & aArchetype);
 
         EntityRecord & record(HandleKey aKey);
         Archetype & archetype(Handle<Archetype> aHandle);
@@ -65,7 +65,8 @@ class EntityManager
 
     private:
         template <class F_maker>
-        ArchetypeRecord makeArchetypeIfAbsent(const TypeSet & aTargetTypeSet, F_maker aMakeCallback);
+        Handle<Archetype> makeArchetypeIfAbsent(const TypeSet & aTargetTypeSet,
+                                                F_maker && aMakeCallback);
 
         // TODO Refactor with fewer higher level classes, this is turning into a super class.
         HandleKey mNextHandle;
@@ -102,11 +103,11 @@ private:
     { return mState.getArchetypeHandle(aTypeSet); }
 
     template <class T_component>
-    ArchetypeRecord extendArchetype(const Archetype & aArchetype)
+    Handle<Archetype> extendArchetype(const Archetype & aArchetype)
     { return mState.extendArchetype<T_component>(aArchetype); }
 
     template <class T_component>
-    ArchetypeRecord restrictArchetype(const Archetype & aArchetype)
+    Handle<Archetype> restrictArchetype(const Archetype & aArchetype)
     { return mState.restrictArchetype<T_component>(aArchetype); }
 
     EntityRecord & record(HandleKey aKey)
@@ -159,7 +160,7 @@ void Handle<Entity>::add(T_component aComponent)
     Handle<Archetype> initialArchetypeHandle = initialRecord.mArchetype;
 
     Handle<Archetype> targetArchetypeHandle =
-        mManager.extendArchetype<T_component>(mManager.archetype(initialArchetypeHandle)).mHandle;
+        mManager.extendArchetype<T_component>(mManager.archetype(initialArchetypeHandle));
     Archetype & targetArchetype = mManager.archetype(targetArchetypeHandle);
 
     // The extend might have invalidate the archetype reference
@@ -209,7 +210,7 @@ void Handle<Entity>::remove()
     Handle<Archetype> initialArchetypeHandle = initialRecord.mArchetype;
 
     Handle<Archetype> targetArchetypeHandle =
-        mManager.restrictArchetype<T_component>(mManager.archetype(initialArchetypeHandle)).mHandle;
+        mManager.restrictArchetype<T_component>(mManager.archetype(initialArchetypeHandle));
     Archetype & targetArchetype = mManager.archetype(targetArchetypeHandle);
 
     Archetype & initialArchetype = mManager.archetype(initialArchetypeHandle);
@@ -261,7 +262,7 @@ inline Handle<Entity> EntityManager::InternalState::addEntity(EntityManager & aM
 
 
 template <class T_component>
-ArchetypeRecord EntityManager::InternalState::extendArchetype(const Archetype & aArchetype)
+Handle<Archetype> EntityManager::InternalState::extendArchetype(const Archetype & aArchetype)
 {
     TypeSet targetTypeSet{aArchetype.getTypeSet()};
     targetTypeSet.insert(getId<T_component>());
@@ -273,7 +274,7 @@ ArchetypeRecord EntityManager::InternalState::extendArchetype(const Archetype & 
 
 
 template <class T_component>
-ArchetypeRecord EntityManager::InternalState::restrictArchetype(const Archetype & aArchetype)
+Handle<Archetype> EntityManager::InternalState::restrictArchetype(const Archetype & aArchetype)
 {
     TypeSet targetTypeSet{aArchetype.getTypeSet()};
     targetTypeSet.erase(getId<T_component>());
@@ -286,34 +287,19 @@ ArchetypeRecord EntityManager::InternalState::restrictArchetype(const Archetype 
 
 // TODO move to the ArchetypeStore
 template <class F_maker>
-ArchetypeRecord EntityManager::InternalState::makeArchetypeIfAbsent(const TypeSet & aTargetTypeSet,
-                                                                    F_maker aMakeCallback)
+Handle<Archetype> EntityManager::InternalState::makeArchetypeIfAbsent(const TypeSet & aTargetTypeSet,
+                                                                      F_maker && aMakeCallback)
 {
-    auto & archetypes = mArchetypes.mArchetypes;
-    auto & handleToArchetype = mArchetypes.mHandleToArchetype;
-
-    if (auto found = archetypes.find(aTargetTypeSet);
-        found != archetypes.end())
+    auto [handle, didInsert] =
+            mArchetypes.makeIfAbsent(aTargetTypeSet, std::forward<F_maker>(aMakeCallback));
+    if(didInsert)
     {
-        return found->second;
-    }
-    else
-    {
-        std::size_t insertedPosition = handleToArchetype.size();
-        handleToArchetype.push_back(aMakeCallback());
-        ArchetypeRecord inserted = archetypes.emplace(
-            aTargetTypeSet,
-            ArchetypeRecord{
-                Handle<Archetype>{insertedPosition}
-            })
-            .first->second;
-        // Ask each QueryBackend if it is interested in the new archetype.
         for (auto & [_types, queryBackend] : mQueryBackends)
         {
-            queryBackend->pushIfMatches(aTargetTypeSet, inserted.mHandle, mArchetypes);
+            queryBackend->pushIfMatches(aTargetTypeSet, handle, mArchetypes);
         }
-        return inserted;
     }
+    return handle;
 }
 
 
