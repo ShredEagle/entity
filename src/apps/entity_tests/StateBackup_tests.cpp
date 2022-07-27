@@ -160,3 +160,89 @@ SCENARIO("State saves the archetypes.")
         }
     }
 }
+
+
+SCENARIO("Queries remain valid accross states.")
+{
+    GIVEN("An entity manager with two entities with component (A), a state backup, and queries.")
+    {
+        EntityManager world;
+        Handle<Entity> h1 = world.addEntity();
+        Handle<Entity> h2 = world.addEntity();
+
+        {
+            Phase phase;
+            h1.get(phase)->add<ComponentA>({});
+            h2.get(phase)->add<ComponentA>({});
+        }
+
+        // IMPORTANT: client code should never instantiate Queries outside of the current world state.
+        // (i.e. Queries should always be part of a System or Component stored in the world state.)
+        Query<ComponentA> qA{world};
+        Query<ComponentA, ComponentB> qAB{world};
+        Query<ComponentA, ComponentC> qAC{world};
+        Query<ComponentA, ComponentB, ComponentC> qABC{world};
+
+        State initial = world.saveState();
+
+        REQUIRE(qA.countMatches() == 2);
+
+        GIVEN("A backup of the state with component (B) added to the first entity.")
+        {
+            {
+                Phase phase;
+                h1.get(phase)->add<ComponentB>({});
+            }
+            State second = world.saveState();
+
+            GIVEN("A backup of the state with component (C) added to the last entity, and (B) removed.")
+            {
+                {
+                    Phase phase;
+                    h1.get(phase)->remove<ComponentB>();
+                    h2.get(phase)->add<ComponentC>({});
+                }
+                State third = world.saveState();
+
+                WHEN("Initial state is restored.")
+                {
+                    world.restoreState(initial);
+
+                    THEN("Query(A) has 2 entities, others have 0")
+                    {
+                        CHECK(qA.countMatches() == 2);
+                        CHECK(qAB.countMatches() == 0);
+                        CHECK(qAC.countMatches() == 0);
+                        CHECK(qABC.countMatches() == 0);
+                    }
+                }
+
+                WHEN("Second state is restored.")
+                {
+                    world.restoreState(second);
+
+                    THEN("Query(A) has 2 entities, (A, B) has 1, others have 0")
+                    {
+                        CHECK(qA.countMatches() == 2);
+                        CHECK(qAB.countMatches() == 1);
+                        CHECK(qAC.countMatches() == 0);
+                        CHECK(qABC.countMatches() == 0);
+                    }
+                }
+
+                WHEN("Third state is restored.")
+                {
+                    world.restoreState(third);
+
+                    THEN("Query(A) has 2 entities, (A, C) has 1, others have 0")
+                    {
+                        CHECK(qA.countMatches() == 2);
+                        CHECK(qAB.countMatches() == 0);
+                        CHECK(qAC.countMatches() == 1);
+                        CHECK(qABC.countMatches() == 0);
+                    }
+                }
+            }
+        }
+    }
+}

@@ -3,6 +3,8 @@
 #include "Archetype.h"
 #include "ArchetypeStore.h"
 #include "Entity.h"
+#include "QueryStore.h"
+
 #include "entity/detail/QueryBackend.h"
 
 #include <algorithm>
@@ -56,6 +58,9 @@ class EntityManager
         template <class... VT_components>
         detail::QueryBackend<VT_components...> * getQueryBackend();
 
+        template <class... VT_components>
+        detail::QueryBackend<VT_components...> * queryBackend(TypeSequence aQueryType);
+
         // TODO This could be massively optimized by keeping a graph of transformations on the
         // archetypes, and storing the backend difference along the edges.
         // Basically, the edge would cache this information.
@@ -75,12 +80,7 @@ class EntityManager
 
         ArchetypeStore mArchetypes;
 
-        // TODO Ad 2022/07/08: Replace the TypeSequence by a TypeSet.
-        // This will imply that all queries on the same set of components,
-        // **independently of the order**, will share the same QueryBackend.
-        // The main complication will be that the Query will need to statically sort the components
-        // to instantiate their pointer to backend.
-        std::map<TypeSequence, std::shared_ptr<detail::QueryBackendBase>> mQueryBackends;
+        QueryStore mQueryBackends;
     };
 
 public:
@@ -123,6 +123,10 @@ private:
     template <class... VT_components>
     detail::QueryBackend<VT_components...> * getQueryBackend()
     { return mState.getQueryBackend<VT_components...>(); }
+
+    template <class... VT_components>
+    detail::QueryBackend<VT_components...> * queryBackend(TypeSequence aQueryType)
+    { return mState.queryBackend<VT_components...>(aQueryType); }
 
     //// TODO This could be massively optimized by keeping a graph of transformations on the
     //// archetypes, and storing the backend difference along the edges.
@@ -325,6 +329,14 @@ detail::QueryBackend<VT_components...> * EntityManager::InternalState::getQueryB
     assert(dynamic_cast<detail::QueryBackend<VT_components...> *>(backend) != nullptr);
 
     return static_cast<detail::QueryBackend<VT_components...> *>(backend);
+}
+
+
+template <class... VT_components>
+detail::QueryBackend<VT_components...> *
+EntityManager::InternalState::queryBackend(TypeSequence aQueryType)
+{
+    return static_cast<detail::QueryBackend<VT_components...> *>(mQueryBackends.at(aQueryType).get());
 }
 
 

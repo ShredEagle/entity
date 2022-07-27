@@ -19,6 +19,8 @@ class QueryBackendBase
 public:
     virtual ~QueryBackendBase() = default;
 
+    virtual std::unique_ptr<QueryBackendBase> clone() const = 0;
+
     virtual void pushIfMatches(const TypeSet & aCandidateTypeSet,
                                HandleKey<Archetype> aCandidate,
                                const ArchetypeStore & aStore) = 0;
@@ -86,6 +88,8 @@ public:
 
     QueryBackend(const ArchetypeStore & aArchetypes);
 
+    std::unique_ptr<QueryBackendBase> clone() const final;
+
     template <class F_function>
     Listening listenEntityAdded(F_function && aCallback);
 
@@ -148,6 +152,13 @@ QueryBackend<VT_components...>::QueryBackend(const ArchetypeStore & aArchetypes)
         const auto & [typeSet, archetypeKey] = *mapping;
         pushIfMatches(typeSet, archetypeKey, aArchetypes);
     }
+}
+
+
+template <class... VT_components>
+std::unique_ptr<QueryBackendBase> QueryBackend<VT_components...>::clone() const
+{
+    return std::make_unique<QueryBackend<VT_components...>>(*this);
 }
 
 

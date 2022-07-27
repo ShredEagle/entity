@@ -8,6 +8,7 @@ set(${TARGET_NAME}_HEADERS
     EntityManager.h
     HandleKey.h
     Query.h
+    QueryStore.h
 
     detail/QueryBackend.h
 )
@@ -18,6 +19,7 @@ set(${TARGET_NAME}_SOURCES
     Entity.cpp
     EntityManager.cpp
     Query.cpp
+    QueryStore.cpp
 )
 
 source_group(TREE ${CMAKE_CURRENT_LIST_DIR}

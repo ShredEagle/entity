@@ -3,6 +3,7 @@
 #include "EntityManager.h"
 
 #include "detail/QueryBackend.h"
+#include "entity/Component.h"
 
 #include <numeric>
 
@@ -41,9 +42,18 @@ public:
     void onRemoveEntity(F_function && aCallback);
 
 private:
+    // TODO Ad 2022/07/27 #perf p2: Have a better "handle" mechanism, e.g. an offset in an array.
+    inline static const TypeSequence gTypeSequence{getTypeSequence<VT_components...>()};
+
+    detail::QueryBackend<VT_components...> & getBackend()
+    { return *mManager.queryBackend<VT_components...>(gTypeSequence); }
+
+    const detail::QueryBackend<VT_components...> & getBackend() const
+    { return *mManager.queryBackend<VT_components...>(gTypeSequence); }
+
     using Matched_t = typename detail::QueryBackend<VT_components...>::MatchedArchetype;
     const std::vector<Matched_t> & matches() const
-    { return mSharedBackend->mMatchingArchetypes; }
+    { return getBackend().mMatchingArchetypes; }
 
     Archetype & getArchetype(const Matched_t & aMatch)
     { return mManager.archetype(aMatch.mArchetype); }
@@ -51,11 +61,8 @@ private:
     const Archetype & getArchetype(const Matched_t & aMatch) const
     { return mManager.archetype(aMatch.mArchetype); }
 
-
-    detail::QueryBackend<VT_components...>* mSharedBackend;
     std::vector<detail::Listening> mActiveListenings;
 
-    // TODO can it be removed? Or made const?
     EntityManager & mManager;
 };
 
@@ -65,9 +72,11 @@ private:
 //
 template <class... VT_components>
 Query<VT_components...>::Query(EntityManager & aManager) :
-    mSharedBackend{aManager.getQueryBackend<VT_components...>()},
     mManager{aManager}
-{}
+{
+    // Ensure the query backend exists in the map.
+    aManager.getQueryBackend<VT_components...>();
+}
 
 
 template <class... VT_components>
@@ -109,7 +118,7 @@ template <class F_function>
 void Query<VT_components...>::onAddEntity(F_function && aCallback)
 {
     mActiveListenings.push_back(
-        mSharedBackend->listenEntityAdded(std::forward<F_function>(aCallback)));
+        getBackend().listenEntityAdded(std::forward<F_function>(aCallback)));
 }
 
 
@@ -118,7 +127,7 @@ template <class F_function>
 void Query<VT_components...>::onRemoveEntity(F_function && aCallback)
 {
     mActiveListenings.push_back(
-        mSharedBackend->listenEntityRemoved(std::forward<F_function>(aCallback)));
+        getBackend().listenEntityRemoved(std::forward<F_function>(aCallback)));
 }
 
 
