@@ -246,3 +246,62 @@ SCENARIO("Queries remain valid accross states.")
         }
     }
 }
+
+
+template <class T_query>
+struct ComponentQuery
+{
+    ComponentQuery(EntityManager & aManager) :
+        mQuery{aManager}
+    {}
+
+    operator T_query &()
+    { return mQuery; }
+
+    T_query mQuery;
+};
+
+
+SCENARIO("Queries can listen and stop listening on different states.")
+{
+    GIVEN("An entity manager with a query on component (A).")
+    {
+        using CompQ = ComponentQuery<Query<ComponentA>>;
+
+        EntityManager world;
+        Handle<Entity> hq = world.addEntity();
+
+        {
+            Phase phase;
+            hq.get(phase)->add<CompQ>({world});
+        }
+
+        GIVEN("The query listens to entities added.")
+        {
+            int addCounter{0};
+            {
+                Phase phase;
+                hq.get(phase)->get<CompQ>().mQuery.onAddEntity([&addCounter](auto)
+                        {
+                            ++addCounter;
+                        });
+            }
+
+            // Sanity check
+            WHEN("An entity with component (A) is added.")
+            {
+                Handle<Entity> h1 = world.addEntity();
+                {
+                    Phase phase;
+                    h1.get(phase)->add<ComponentA>({});
+                }
+                THEN("The listener is invoked.")
+                {
+                    CHECK(addCounter == 1);
+                }
+            }
+        }
+
+        //State initial = world.saveState();
+    }
+}

@@ -45,11 +45,13 @@ class [[nodiscard]] Listening
 public:
     template <class F_guard>
     explicit Listening(F_guard && aGuard) :
-        mGuard{std::make_unique<std::function<void()>>(std::forward<F_guard>(aGuard))}
+        mGuard{std::make_shared<std::function<void()>>(std::forward<F_guard>(aGuard))}
     {}
 
-    Listening(const Listening &) = delete;
-    Listening & operator=(const Listening &) = delete;
+    Listening(const Listening & aRhs) = default;
+    // Otherwise, the template ctor is preferred...
+    Listening(Listening & aRhs) = default;
+    Listening & operator=(const Listening &) = default;
 
     Listening(Listening &&) = default;
     Listening & operator=(Listening &&) = default;
@@ -62,7 +64,7 @@ public:
         }
     }
 private:
-    std::unique_ptr<std::function<void()>> mGuard;
+    std::shared_ptr<std::function<void()>> mGuard;
 };
 
 

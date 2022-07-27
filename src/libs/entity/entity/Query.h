@@ -46,24 +46,24 @@ private:
     inline static const TypeSequence gTypeSequence{getTypeSequence<VT_components...>()};
 
     detail::QueryBackend<VT_components...> & getBackend()
-    { return *mManager.queryBackend<VT_components...>(gTypeSequence); }
+    { return *mManager->queryBackend<VT_components...>(gTypeSequence); }
 
     const detail::QueryBackend<VT_components...> & getBackend() const
-    { return *mManager.queryBackend<VT_components...>(gTypeSequence); }
+    { return *mManager->queryBackend<VT_components...>(gTypeSequence); }
 
     using Matched_t = typename detail::QueryBackend<VT_components...>::MatchedArchetype;
     const std::vector<Matched_t> & matches() const
     { return getBackend().mMatchingArchetypes; }
 
     Archetype & getArchetype(const Matched_t & aMatch)
-    { return mManager.archetype(aMatch.mArchetype); }
+    { return mManager->archetype(aMatch.mArchetype); }
 
     const Archetype & getArchetype(const Matched_t & aMatch) const
-    { return mManager.archetype(aMatch.mArchetype); }
+    { return mManager->archetype(aMatch.mArchetype); }
 
     std::vector<detail::Listening> mActiveListenings;
 
-    EntityManager & mManager;
+    EntityManager * mManager;
 };
 
 
@@ -72,7 +72,7 @@ private:
 //
 template <class... VT_components>
 Query<VT_components...>::Query(EntityManager & aManager) :
-    mManager{aManager}
+    mManager{&aManager}
 {
     // Ensure the query backend exists in the map.
     aManager.getQueryBackend<VT_components...>();
