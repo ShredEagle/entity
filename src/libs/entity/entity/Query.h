@@ -77,8 +77,8 @@ void Query<VT_components...>::each(F_function && aCallback)
     for(const auto & match : matches())
     {
         std::size_t size = match.mArchetype->countEntities();
-        std::tuple<Storage<VT_components> & ...> storages =
-            match.mArchetype->getStorage(std::get<StorageIndex<VT_components>>(match.mComponentIndices)...);
+        std::tuple<Storage<VT_components> & ...> storages = std::tie(
+            match.mArchetype->getStorage(std::get<StorageIndex<VT_components>>(match.mComponentIndices))...);
         for(std::size_t entityId = 0; entityId != size; ++entityId)
         {
             detail::invoke<

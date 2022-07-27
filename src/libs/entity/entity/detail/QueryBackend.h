@@ -215,8 +215,8 @@ void QueryBackend<VT_components...>::signal_impl(
     assert(aRecord.mIndex < found->mArchetype->countEntities());
     if (!aListeners.empty())
     {
-        std::tuple<Storage<VT_components> & ...> storages =
-            found->mArchetype->getStorage(std::get<StorageIndex<VT_components>>(found->mComponentIndices)...);
+        std::tuple<Storage<VT_components> & ...> storages = std::tie(
+            found->mArchetype->getStorage(std::get<StorageIndex<VT_components>>(found->mComponentIndices))...);
 
         for(auto & callback : aListeners)
         {
