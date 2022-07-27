@@ -113,12 +113,11 @@ public:
 /// \brief Invoke a callback on a matched archetype, for a given entity in the archetype.
 template <class... VT_components, class F_callback>
 void invoke(F_callback aCallback,
-            const typename QueryBackend<VT_components...>::MatchedArchetype & aMatch,
+            std::tuple<Storage<VT_components> & ...> aStorages,
+            //const typename QueryBackend<VT_components...>::MatchedArchetype & aMatch,
             EntityIndex aIndexInArchetype)
 {
-    aCallback(aMatch.mArchetype->getStorage(
-                std::get<StorageIndex<VT_components>>(aMatch.mComponentIndices))
-                    .mArray[aIndexInArchetype]...);
+    aCallback(std::get<Storage<VT_components> &>(aStorages).mArray[aIndexInArchetype]...);
 }
 
 
@@ -214,10 +213,15 @@ void QueryBackend<VT_components...>::signal_impl(
 
     assert(found != mMatchingArchetypes.end());
     assert(aRecord.mIndex < found->mArchetype->countEntities());
-
-    for(auto & callback : aListeners)
+    if (!aListeners.empty())
     {
-        invoke<VT_components...>(callback, *found, aRecord.mIndex);
+        std::tuple<Storage<VT_components> & ...> storages = std::tie(
+            found->mArchetype->getStorage(std::get<StorageIndex<VT_components>>(found->mComponentIndices))...);
+
+        for(auto & callback : aListeners)
+        {
+            invoke<VT_components...>(callback, storages, aRecord.mIndex);
+        }
     }
 }
 
