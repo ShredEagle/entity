@@ -248,32 +248,18 @@ SCENARIO("Queries remain valid accross states.")
 }
 
 
-template <class T_query>
-struct ComponentQuery
-{
-    ComponentQuery(EntityManager & aManager) :
-        mQuery{aManager}
-    {}
-
-    operator T_query &()
-    { return mQuery; }
-
-    T_query mQuery;
-};
-
-
 SCENARIO("Queries can listen and stop listening on different states.")
 {
     GIVEN("An entity manager with a query on component (A).")
     {
-        using CompQ = ComponentQuery<Query<ComponentA>>;
+        using QueryA = Query<ComponentA>;
 
         EntityManager world;
         Handle<Entity> hq = world.addEntity();
 
         {
             Phase phase;
-            hq.get(phase)->add<CompQ>({world});
+            hq.get(phase)->add<QueryA>({world});
         }
 
         GIVEN("The query listens to entities added.")
@@ -281,7 +267,7 @@ SCENARIO("Queries can listen and stop listening on different states.")
             int addCounter{0};
             {
                 Phase phase;
-                hq.get(phase)->get<CompQ>().mQuery.onAddEntity([&addCounter](auto)
+                hq.get(phase)->get<QueryA>().onAddEntity([&addCounter](auto)
                         {
                             ++addCounter;
                         });
