@@ -78,9 +78,12 @@ class EntityManager
         std::map<HandleKey<Entity>, EntityRecord> mHandleMap;
         std::deque<HandleKey<Entity>> mFreedHandles;
 
-        ArchetypeStore mArchetypes;
-
+        // This must appear BEFORE the archetypes, so QueryBackends are destructed AFTER Archetypes:
+        // Archetypes might store Queries, whose dtor will stop listening to events by calling
+        // QueryBackend methods.
         QueryStore mQueryBackends;
+
+        ArchetypeStore mArchetypes;
     };
 
 public:
