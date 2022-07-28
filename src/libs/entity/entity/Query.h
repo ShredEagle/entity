@@ -88,13 +88,12 @@ Query<VT_components...>::Query(EntityManager & aManager) :
 
 template <class... VT_components>
 Query<VT_components...>::Query(const Query & aRhs) :
-    mActiveListenings{aRhs.mActiveListenings},
     mManager{aRhs.mManager}
 {
     // Redirect all listeners to stop listening in the backends of the current backend store.
-    for (auto & listening : mActiveListenings)
+    for (const auto & listening : aRhs.mActiveListenings)
     {
-        listening.redirect(&getBackend());
+        mActiveListenings.emplace_back(listening, &getBackend());
     }
 }
 

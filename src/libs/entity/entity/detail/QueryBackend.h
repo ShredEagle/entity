@@ -38,17 +38,33 @@ public:
 // TODO Ad 2022/07/13: Replace with Handy guard, e.g. using Listening = Guard;
 class [[nodiscard]] Listening
 {
+    using Callback_t = std::function<void(QueryBackendBase &)>;
+
 public:
     template <class F_guard>
     requires std::invocable<F_guard, QueryBackendBase &>
     explicit Listening(QueryBackendBase * aBackend, F_guard && aGuard) :
         mBackend{aBackend},
-        mGuard{std::forward<F_guard>(aGuard)}
+        mGuard{std::make_unique<Callback_t>(std::forward<F_guard>(aGuard))}
     {}
+
+    Listening(const Listening & aRhs, QueryBackendBase * aBackend) :
+        mGuard{std::make_unique<Callback_t>(*aRhs.mGuard)},
+        mBackend{aBackend}
+    {
+        // If both Listening remove from the same backend, there is a logic error.
+        //assert(mBackend != aRhs.mBackend);
+    }
+
+    Listening(Listening &&) = default;
+    Listening & operator=(Listening &&) = default;
 
     ~Listening()
     {
-        mGuard(*mBackend);
+        if (mGuard)
+        {
+            std::invoke(*mGuard, *mBackend);
+        }
     }
 
     void redirect( QueryBackendBase * aBackend)
@@ -57,7 +73,7 @@ public:
     }
 
 private:
-    std::function<void(QueryBackendBase &)> mGuard;
+    std::unique_ptr<Callback_t> mGuard;
     QueryBackendBase * mBackend;
 };
 
