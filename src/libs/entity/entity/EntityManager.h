@@ -101,7 +101,7 @@ public:
 
     /// \note: Not const, since it actually re-allocate the internal state
     State saveState();
-    void restoreState(State aState);
+    void restoreState(const State & aState);
 
 private:
     // Forward all externally used methods to state, so the state struct is hidden

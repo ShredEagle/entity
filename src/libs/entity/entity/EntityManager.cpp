@@ -91,9 +91,10 @@ State EntityManager::saveState()
 }
 
 
-void EntityManager::restoreState(State aState)
+void EntityManager::restoreState(const State & aState)
 {
-    mState = std::move(aState.mState);
+    mState = std::make_unique<InternalState>();
+    *mState = *aState.mState;
 }
 
 
