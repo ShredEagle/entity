@@ -88,8 +88,6 @@ class EntityManager
     };
 
 public:
-    //EntityManager();
-
     /// \warning Thread unsafe!
     // TODO #thread P1: should be made thread safe (take a look at lock-free approaches)
     // because this operation is not deferred (so parallel jobs could be doing it concurrently)
@@ -155,7 +153,7 @@ public:
     {}
 
 private:
-    detail::CloningPointer<EntityManager::InternalState> mState;
+    std::unique_ptr<EntityManager::InternalState> mState;
 };
 
 

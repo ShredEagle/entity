@@ -53,7 +53,7 @@ public:
         mBackend{aBackend}
     {
         // If both Listening remove from the same backend, there is a logic error.
-        //assert(mBackend != aRhs.mBackend);
+        assert(mBackend != aRhs.mBackend);
     }
 
     Listening(Listening &&) = default;

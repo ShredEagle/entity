@@ -17,12 +17,17 @@ namespace ent {
 template <class... VT_components>
 class Query
 {
+    template <class>
+    friend class Storage;
+
 public:
     /// \brief Instantiate the query for the provided EntityManager.
     ///
     /// Caching of queries will be handled automatically.
     Query(EntityManager & aManager);
 
+    // TODO Should be private (and only allowed to be called by Storage<Query> cloning function
+    // Yet the actual copy ctor is called deep within the stl, something we do not want to befriend.
     Query(const Query & aRhs);
     Query & operator=(const Query & aRhs);
 

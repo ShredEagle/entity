@@ -256,11 +256,12 @@ SCENARIO("Several backups can be taken and destroyed.")
 
         GIVEN("Several backups are taken.")
         {
-            std::vector<State> backups{
-                world.saveState(),
-                world.saveState(),
-                world.saveState(),
-            };
+            // No initializer_list for move only types
+            // see: https://stackoverflow.com/q/8468774/1027706
+            std::vector<State> backups;
+            backups.push_back(world.saveState());
+            backups.push_back(world.saveState());
+            backups.push_back(world.saveState());
 
             WHEN("The backups are destroyed.")
             {
@@ -285,11 +286,10 @@ SCENARIO("Several backups can be taken and destroyed.")
 
             GIVEN("Several backups are taken.")
             {
-                std::vector<State> backups{
-                    world.saveState(),
-                    world.saveState(),
-                    world.saveState(),
-                };
+                std::vector<State> backups;
+                backups.push_back(world.saveState());
+                backups.push_back(world.saveState());
+                backups.push_back(world.saveState());
 
                 WHEN("The backups are destroyed.")
                 {
