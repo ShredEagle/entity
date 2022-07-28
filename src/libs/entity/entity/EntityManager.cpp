@@ -79,7 +79,7 @@ EntityManager::InternalState::getExtraQueryBackends(const Archetype & aCompared,
 
 State EntityManager::saveState() const
 {
-    return State{mState};
+    return State{std::make_unique<EntityManager::InternalState>(*mState)};
 }
 
 
