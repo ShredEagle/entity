@@ -99,7 +99,8 @@ public:
     std::size_t countLiveEntities() const
     { return mState->countLiveEntities(); }
 
-    State saveState() const;
+    /// \note: Not const, since it actually re-allocate the internal state
+    State saveState();
     void restoreState(State aState);
 
 private:
