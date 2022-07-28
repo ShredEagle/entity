@@ -1,6 +1,8 @@
 #pragma once
 
 
+#include "HandledStore.h"
+
 #include <entity/Archetype.h>
 #include <entity/ArchetypeStore.h>
 #include <entity/Entity.h>
@@ -38,27 +40,25 @@ class [[nodiscard]] Listening
 {
 public:
     template <class F_guard>
-    explicit Listening(F_guard && aGuard) :
-        mGuard{std::make_shared<std::function<void()>>(std::forward<F_guard>(aGuard))}
+    requires std::invocable<F_guard, QueryBackendBase &>
+    explicit Listening(QueryBackendBase * aBackend, F_guard && aGuard) :
+        mBackend{aBackend},
+        mGuard{std::forward<F_guard>(aGuard)}
     {}
-
-    Listening(const Listening & aRhs) = default;
-    // Otherwise, the template ctor is preferred...
-    Listening(Listening & aRhs) = default;
-    Listening & operator=(const Listening &) = default;
-
-    Listening(Listening &&) = default;
-    Listening & operator=(Listening &&) = default;
 
     ~Listening()
     {
-        if(mGuard)
-        {
-            (*mGuard)();
-        }
+        mGuard(*mBackend);
     }
+
+    void redirect( QueryBackendBase * aBackend)
+    {
+        mBackend = aBackend;
+    }
+
 private:
-    std::shared_ptr<std::function<void()>> mGuard;
+    std::function<void(QueryBackendBase &)> mGuard;
+    QueryBackendBase * mBackend;
 };
 
 
@@ -114,8 +114,8 @@ public:
 
     std::vector<MatchedArchetype> mMatchingArchetypes;
     // A list, because we can delete in the middle, and it should not invalidate other iterators.
-    std::list<AddedEntityCallback> mAddListeners;
-    std::list<RemovedEntityCallback> mRemoveListeners;
+    HandledStore<AddedEntityCallback> mAddListeners;
+    HandledStore<RemovedEntityCallback> mRemoveListeners;
 };
 
 
@@ -167,11 +167,13 @@ template <class... VT_components>
 template <class F_function>
 Listening QueryBackend<VT_components...>::listenEntityAdded(F_function && aCallback)
 {
-    auto inserted = mAddListeners.emplace(mAddListeners.end(),
-                                          std::forward<F_function>(aCallback));
-    return Listening{[inserted, this]()
+    auto inserted = mAddListeners.emplace(std::forward<F_function>(aCallback));
+    return Listening{
+        this,
+        [inserted](QueryBackendBase & aBackend)
         {
-            mAddListeners.erase(inserted);
+            static_cast<QueryBackend<VT_components...> &>(aBackend)
+                .mAddListeners.erase(inserted);
         }};
 }
 
@@ -180,11 +182,13 @@ template <class... VT_components>
 template <class F_function>
 Listening QueryBackend<VT_components...>::listenEntityRemoved(F_function && aCallback)
 {
-    auto inserted = mRemoveListeners.emplace(mRemoveListeners.end(),
-                                             std::forward<F_function>(aCallback));
-    return Listening{[inserted, this]()
+    auto inserted = mRemoveListeners.emplace(std::forward<F_function>(aCallback));
+    return Listening{
+        this,
+        [inserted](QueryBackendBase & aBackend)
         {
-            mRemoveListeners.erase(inserted);
+            static_cast<QueryBackend<VT_components...> &>(aBackend)
+                .mRemoveListeners.erase(inserted);
         }};
 }
 
@@ -237,7 +241,7 @@ void QueryBackend<VT_components...>::signal_impl(
     assert(found != mMatchingArchetypes.end());
     assert(aRecord.mIndex < archetype.countEntities());
 
-    for(auto & callback : aListeners)
+    for(auto & [_handle, callback] : aListeners)
     {
         invoke<VT_components...>(callback, archetype, *found, aRecord.mIndex);
     }

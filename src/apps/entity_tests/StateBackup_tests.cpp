@@ -248,60 +248,60 @@ SCENARIO("Queries remain valid accross states.")
 }
 
 
-//SCENARIO("Several backups can be taken and destroyed.")
-//{
-//    GIVEN("An entity manager.")
-//    {
-//        EntityManager world;
-//
-//        GIVEN("Several backups are taken.")
-//        {
-//            std::vector<State> backups{
-//                world.saveState(),
-//                world.saveState(),
-//                world.saveState(),
-//            };
-//
-//            WHEN("The backups are destroyed.")
-//            {
-//                backups.clear();
-//
-//                THEN("All is well.")
-//                {}
-//            }
-//        }
-//
-//        GIVEN("A query listens on component (A).")
-//        {
-//            using QueryA = Query<ComponentA>;
-//            QueryA qA{world};
-//            qA.onAddEntity([](auto){});
-//
-//            Handle<Entity> hq = world.addEntity();
-//            {
-//                Phase phase;
-//                hq.get(phase)->add<QueryA>(std::move(qA));
-//            }
-//
-//            GIVEN("Several backups are taken.")
-//            {
-//                std::vector<State> backups{
-//                    world.saveState(),
-//                    world.saveState(),
-//                    world.saveState(),
-//                };
-//
-//                WHEN("The backups are destroyed.")
-//                {
-//                    backups.clear();
-//
-//                    THEN("All is well.")
-//                    {}
-//                }
-//            }
-//        }
-//    }
-//}
+SCENARIO("Several backups can be taken and destroyed.")
+{
+    GIVEN("An entity manager.")
+    {
+        EntityManager world;
+
+        GIVEN("Several backups are taken.")
+        {
+            std::vector<State> backups{
+                world.saveState(),
+                world.saveState(),
+                world.saveState(),
+            };
+
+            WHEN("The backups are destroyed.")
+            {
+                backups.clear();
+
+                THEN("All is well.")
+                {}
+            }
+        }
+
+        GIVEN("A query listens on component (A).")
+        {
+            using QueryA = Query<ComponentA>;
+            QueryA qA{world};
+            qA.onAddEntity([](auto){});
+
+            Handle<Entity> hq = world.addEntity();
+            {
+                Phase phase;
+                hq.get(phase)->add<QueryA>(std::move(qA));
+            }
+
+            GIVEN("Several backups are taken.")
+            {
+                std::vector<State> backups{
+                    world.saveState(),
+                    world.saveState(),
+                    world.saveState(),
+                };
+
+                WHEN("The backups are destroyed.")
+                {
+                    backups.clear();
+
+                    THEN("All is well.")
+                    {}
+                }
+            }
+        }
+    }
+}
 //
 //
 //SCENARIO("A restored state listens to new archetypes.")

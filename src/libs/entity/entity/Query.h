@@ -23,6 +23,12 @@ public:
     /// Caching of queries will be handled automatically.
     Query(EntityManager & aManager);
 
+    Query(const Query & aRhs);
+    Query & operator=(const Query & aRhs);
+
+    Query(Query && aRhs) = default;
+    Query & operator=(Query && aRhs) = default;
+
     /// \brief Number of distinct entities matching the query.
     std::size_t countMatches() const;
 
@@ -42,6 +48,8 @@ public:
     void onRemoveEntity(F_function && aCallback);
 
 private:
+    void swap(Query & aRhs);
+
     // TODO Ad 2022/07/27 #perf p2: Have a better "handle" mechanism, e.g. an offset in an array.
     inline static const TypeSequence gTypeSequence{getTypeSequence<VT_components...>()};
 
@@ -62,7 +70,6 @@ private:
     { return mManager->archetype(aMatch.mArchetype); }
 
     std::vector<detail::Listening> mActiveListenings;
-
     EntityManager * mManager;
 };
 
@@ -76,6 +83,36 @@ Query<VT_components...>::Query(EntityManager & aManager) :
 {
     // Ensure the query backend exists in the map.
     aManager.getQueryBackend<VT_components...>();
+}
+
+
+template <class... VT_components>
+Query<VT_components...>::Query(const Query & aRhs) :
+    mActiveListenings{aRhs.mActiveListenings},
+    mManager{aRhs.mManager}
+{
+    // Redirect all listeners to stop listening in the backends of the current backend store.
+    for (auto & listening : mActiveListenings)
+    {
+        listening.redirect(&getBackend());
+    }
+}
+
+
+template <class... VT_components>
+Query<VT_components...> & Query<VT_components...>::operator=(const Query & aRhs)
+{
+    Query copy{aRhs};
+    swap(copy);
+    return *this;
+}
+
+
+template <class... VT_components>
+void Query<VT_components...>::swap(Query & aRhs)
+{
+    std::swap(mActiveListenings, aRhs.mActiveListenings);
+    std::swap(mManager, aRhs.mManager);
 }
 
 
