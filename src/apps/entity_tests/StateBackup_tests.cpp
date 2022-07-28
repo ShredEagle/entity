@@ -248,6 +248,171 @@ SCENARIO("Queries remain valid accross states.")
 }
 
 
+SCENARIO("Several backups can be taken and destroyed.")
+{
+    GIVEN("An entity manager.")
+    {
+        EntityManager world;
+
+        GIVEN("Several backups are taken.")
+        {
+            std::vector<State> backups{
+                world.saveState(),
+                world.saveState(),
+                world.saveState(),
+            };
+
+            WHEN("The backups are destroyed.")
+            {
+                backups.clear();
+
+                THEN("All is well.")
+                {}
+            }
+        }
+
+        GIVEN("A query listens on component (A).")
+        {
+            using QueryA = Query<ComponentA>;
+            QueryA qA{world};
+            qA.onAddEntity([](auto){});
+
+            Handle<Entity> hq = world.addEntity();
+            {
+                Phase phase;
+                hq.get(phase)->add<QueryA>(std::move(qA));
+            }
+
+            GIVEN("Several backups are taken.")
+            {
+                std::vector<State> backups{
+                    world.saveState(),
+                    world.saveState(),
+                    world.saveState(),
+                };
+
+                WHEN("The backups are destroyed.")
+                {
+                    backups.clear();
+
+                    THEN("All is well.")
+                    {}
+                }
+            }
+        }
+    }
+}
+
+
+SCENARIO("A restored state listens to new archetypes.")
+{
+    GIVEN("An entity manager with a query on component (A).")
+    {
+        using QueryA = Query<ComponentA>;
+
+        EntityManager world;
+        Handle<Entity> hq = world.addEntity();
+
+        {
+            Phase phase;
+            hq.get(phase)->add<QueryA>({world});
+        }
+
+        GIVEN("The query listens to entities added.")
+        {
+            int addCounter{0};
+            {
+                Phase phase;
+                hq.get(phase)->get<QueryA>().onAddEntity([&addCounter](auto)
+                        {
+                            ++addCounter;
+                        });
+            }
+
+            GIVEN("A backup of the current state, a later state modification.")
+            {
+                auto listeningState = world.saveState();
+                Handle<Entity> h1 = world.addEntity();
+                {
+                    Phase phase;
+                    h1.get(phase)->add<ComponentB>({});
+                }
+                REQUIRE(addCounter == 0);
+
+                WHEN("The backup is restored.")
+                {
+                    world.restoreState(listeningState);
+
+                    WHEN("An entity with component (A) is added, creating the Archetype (A).")
+                    {
+                        Handle<Entity> h1 = world.addEntity();
+                        {
+                            Phase phase;
+                            h1.get(phase)->add<ComponentA>({});
+                        }
+                        THEN("The listener is invoked.")
+                        {
+                            CHECK(addCounter == 1);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+SCENARIO("Destroying backups does not stop active listenings.")
+{
+    GIVEN("An entity manager with a query on component (A).")
+    {
+        using QueryA = Query<ComponentA>;
+
+        EntityManager world;
+        Handle<Entity> hq = world.addEntity();
+
+        {
+            Phase phase;
+            hq.get(phase)->add<QueryA>({world});
+        }
+
+        GIVEN("The query listens to entities added.")
+        {
+            int addCounter{0};
+            {
+                Phase phase;
+                hq.get(phase)->get<QueryA>().onAddEntity([&addCounter](auto)
+                        {
+                            ++addCounter;
+                        });
+            }
+
+            GIVEN("A backup of the current state.")
+            {
+                auto listeningState = std::make_unique<State>(world.saveState());
+
+                GIVEN("The backup state is destructed.")
+                {
+                    listeningState = nullptr;
+
+                    WHEN("An entity with component (A) is added.")
+                    {
+                        Handle<Entity> h1 = world.addEntity();
+                        {
+                            Phase phase;
+                            h1.get(phase)->add<ComponentA>({});
+                        }
+                        THEN("The listener is invoked.")
+                        {
+                            CHECK(addCounter == 1);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 SCENARIO("Queries can listen and stop listening on different states.")
 {
     GIVEN("An entity manager with a query on component (A).")
@@ -286,8 +451,51 @@ SCENARIO("Queries can listen and stop listening on different states.")
                     CHECK(addCounter == 1);
                 }
             }
-        }
 
-        //State initial = world.saveState();
+            GIVEN("A backup of the current state.")
+            {
+                State listeningState = world.saveState();
+
+                WHEN("The query stops listening.")
+                {
+                    {
+                        Phase phase;
+                        hq.get(phase)->get<QueryA>() = QueryA{world};
+                    }
+
+                    // Sanity check
+                    WHEN("An entity with component (A) is added.")
+                    {
+                        Handle<Entity> h1 = world.addEntity();
+                        {
+                            Phase phase;
+                            h1.get(phase)->add<ComponentA>({});
+                        }
+                        THEN("The listener is not invoked.")
+                        {
+                            CHECK(addCounter == 0);
+                        }
+                    }
+
+                    WHEN("The listening state is restored.")
+                    {
+                        world.restoreState(listeningState);
+
+                        WHEN("An entity with component (A) is added.")
+                        {
+                            Handle<Entity> h1 = world.addEntity();
+                            {
+                                Phase phase;
+                                h1.get(phase)->add<ComponentA>({});
+                            }
+                            THEN("The listener is invoked.")
+                            {
+                                CHECK(addCounter == 1);
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }

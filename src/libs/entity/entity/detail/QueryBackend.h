@@ -29,13 +29,7 @@ public:
 };
 
 
-// Implementation note: instances of this templates are hosted by the EntityManager,
-// which maintains then in amap.
-// There should be only one instance (for a given VT_components...) per EntityManager.
-// This allows to cache queries (all identicaly queries share the single backend instance),
-// and the EntityManager is responsible for keeping the backends up to date.
-
-// TODO Ad 2022/07/13: FRAMESAVE Ensure the Listening dtor of a discarded frame does not
+// TODO Ad 2022/07/13 #state p1: FRAMESAVE Ensure the Listening dtor of a discarded frame does not
 // stop the listening in active frames! (i.e. the opposite of the usual problem, we have to make
 // sure the effects are not accross frames). Yet the copy in a new frame should be able to delete
 // in the new frame...
@@ -68,6 +62,11 @@ private:
 };
 
 
+// Implementation note: instances of this templates are hosted by the EntityManager,
+// which maintains then in a map.
+// There should be only one instance (for a given VT_components...) per EntityManager.
+// This allows to cache queries (all identicaly queries share the single backend instance),
+// and the EntityManager is responsible for keeping the backends up to date.
 template <class... VT_components>
 class QueryBackend : public QueryBackendBase
 {
