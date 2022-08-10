@@ -148,6 +148,9 @@ class State
     friend class EntityManager;
 
 public:
+    // Usefull to implement storage in preallocated std::array
+    State() = default;
+
     explicit State(std::unique_ptr<EntityManager::InternalState> aState) :
         mState{std::move(aState)}
     {}

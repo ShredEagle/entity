@@ -93,6 +93,7 @@ State EntityManager::saveState()
 
 void EntityManager::restoreState(const State & aState)
 {
+    assert(aState.mState != nullptr); // the default constructed
     mState = std::make_unique<InternalState>();
     *mState = *aState.mState;
 }
