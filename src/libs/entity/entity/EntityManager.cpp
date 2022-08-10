@@ -77,15 +77,25 @@ EntityManager::InternalState::getExtraQueryBackends(const Archetype & aCompared,
 }
 
 
-State EntityManager::saveState() const
+State EntityManager::saveState()
 {
-    return State{mState};
+    // move the currently active InternalState to the backup State.
+    State backup{std::move(mState)};
+    // Default intialize a new state in the EntityManager.
+    // From this point, all accesses via handles will resolve into this new state.
+    mState = std::make_unique<InternalState>();
+    // Copy-assign the saved state into the defaulted new active state.
+    *mState = *backup.mState;
+
+    return backup;
 }
 
 
-void EntityManager::restoreState(State aState)
+void EntityManager::restoreState(const State & aState)
 {
-    mState = std::move(aState.mState);
+    assert(aState.mState != nullptr); // the default constructed
+    mState = std::make_unique<InternalState>();
+    *mState = *aState.mState;
 }
 
 

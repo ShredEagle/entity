@@ -5,7 +5,8 @@
 #include "Entity.h"
 #include "QueryStore.h"
 
-#include "entity/detail/QueryBackend.h"
+#include "detail/CloningPointer.h"
+#include "detail/QueryBackend.h"
 
 #include <algorithm>
 #include <deque>
@@ -73,7 +74,7 @@ class EntityManager
         HandleKey<Archetype> makeArchetypeIfAbsent(const TypeSet & aTargetTypeSet,
                                            F_maker && aMakeCallback);
 
-        // TODO Refactor with fewer higher level classes, this is turning into a super class.
+        // TODO Refactor the Handle<Entity> related members into a coherent separate class.
         HandleKey<Entity> mNextHandle;
         std::map<HandleKey<Entity>, EntityRecord> mHandleMap;
         std::deque<HandleKey<Entity>> mFreedHandles;
@@ -87,49 +88,48 @@ class EntityManager
     };
 
 public:
-    //EntityManager();
-
     /// \warning Thread unsafe!
     // TODO #thread P1: should be made thread safe (take a look at lock-free approaches)
     // because this operation is not deferred (so parallel jobs could be doing it concurrently)
     Handle<Entity> addEntity()
-    { return mState.addEntity(*this); }
+    { return mState->addEntity(*this); }
 
     std::size_t countLiveEntities() const
-    { return mState.countLiveEntities(); }
+    { return mState->countLiveEntities(); }
 
-    State saveState() const;
-    void restoreState(State aState);
+    /// \note: Not const, since it actually re-allocate the internal state
+    State saveState();
+    void restoreState(const State & aState);
 
 private:
     // Forward all externally used methods to state, so the state struct is hidden
     Handle<Archetype> getArchetypeHandle(const TypeSet & aTypeSet)
-    { return mState.getArchetypeHandle(aTypeSet, *this); }
+    { return mState->getArchetypeHandle(aTypeSet, *this); }
 
     template <class T_component>
     HandleKey<Archetype> extendArchetype(const Archetype & aArchetype)
-    { return mState.extendArchetype<T_component>(aArchetype); }
+    { return mState->extendArchetype<T_component>(aArchetype); }
 
     template <class T_component>
     HandleKey<Archetype> restrictArchetype(const Archetype & aArchetype)
-    { return mState.restrictArchetype<T_component>(aArchetype); }
+    { return mState->restrictArchetype<T_component>(aArchetype); }
 
     EntityRecord & record(HandleKey<Entity> aKey)
-    { return mState.record(aKey); }
+    { return mState->record(aKey); }
 
     Archetype & archetype(HandleKey<Archetype> aHandle)
-    { return mState.archetype(aHandle); }
+    { return mState->archetype(aHandle); }
 
     void freeHandle(HandleKey<Entity> aKey)
-    { return mState.freeHandle(aKey); }
+    { return mState->freeHandle(aKey); }
 
     template <class... VT_components>
     detail::QueryBackend<VT_components...> * getQueryBackend()
-    { return mState.getQueryBackend<VT_components...>(); }
+    { return mState->getQueryBackend<VT_components...>(); }
 
     template <class... VT_components>
     detail::QueryBackend<VT_components...> * queryBackend(TypeSequence aQueryType)
-    { return mState.queryBackend<VT_components...>(aQueryType); }
+    { return mState->queryBackend<VT_components...>(aQueryType); }
 
     //// TODO This could be massively optimized by keeping a graph of transformations on the
     //// archetypes, and storing the backend difference along the edges.
@@ -137,9 +137,9 @@ private:
     ///// \brief Return all QueryBackends that are present i aCompared, but not in aReference.
     std::vector<detail::QueryBackendBase *>
     getExtraQueryBackends(const Archetype & aCompared, const Archetype & aReference) const
-    { return mState.getExtraQueryBackends(aCompared, aReference); }
+    { return mState->getExtraQueryBackends(aCompared, aReference); }
 
-    InternalState mState;
+    std::unique_ptr<InternalState> mState = std::make_unique<InternalState>();
 };
 
 
@@ -148,12 +148,15 @@ class State
     friend class EntityManager;
 
 public:
-    explicit State(EntityManager::InternalState aState) :
+    // Usefull to implement storage in preallocated std::array
+    State() = default;
+
+    explicit State(std::unique_ptr<EntityManager::InternalState> aState) :
         mState{std::move(aState)}
     {}
 
 private:
-    EntityManager::InternalState mState;
+    std::unique_ptr<EntityManager::InternalState> mState;
 };
 
 

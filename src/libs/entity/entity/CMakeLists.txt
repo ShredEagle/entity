@@ -11,6 +11,8 @@ set(${TARGET_NAME}_HEADERS
     QueryStore.h
 
     detail/QueryBackend.h
+    detail/CloningPointer.h
+    detail/HandledStore.h
 )
 
 set(${TARGET_NAME}_SOURCES

@@ -13,7 +13,7 @@ class Inspector<EntityManager>
 {
 public:
     static std::size_t countArchetypes(const EntityManager & aEntityManager)
-    { return aEntityManager.mState.mArchetypes.size(); }
+    { return aEntityManager.mState->mArchetypes.size(); }
 
     template <class... VT_components>
     static Handle<Archetype> getArchetypeHandle(EntityManager & aEntityManager)
