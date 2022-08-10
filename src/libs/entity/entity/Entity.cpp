@@ -18,7 +18,7 @@ Phase::~Phase()
 void Entity::erase()
 {
     mPhase.append(
-        [&handle = mHandle]
+        [handle = mHandle] () mutable
         {
             handle.erase();
         });

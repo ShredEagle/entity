@@ -3,6 +3,7 @@
 #include "Component.h"
 #include "HandleKey.h"
 
+#include <algorithm>
 #include <memory>
 #include <stdexcept>
 #include <vector>
@@ -123,6 +124,8 @@ public:
     Archetype makeRestricted() const;
 
     std::size_t countEntities() const;
+
+    bool checkStoreSize() const;
 
     template <class T_component>
     bool has() const;

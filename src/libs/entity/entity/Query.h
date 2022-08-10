@@ -29,6 +29,9 @@ public:
     template <class F_function>
     void each(F_function && aCallback);
 
+    template <class F_function>
+    void eachPair(F_function && aCallback);
+
     // TODO Ad 2022/07/13: Should the query notify of the potential existence of entities
     // at the moment a EntityAdded listener is installed?
     // It was decided not to do it at the moment, revising the decision if the need arises.
@@ -76,9 +79,71 @@ void Query<VT_components...>::each(F_function && aCallback)
 {
     for(const auto & match : matches())
     {
-        for(std::size_t entityId = 0; entityId != match.mArchetype->countEntities(); ++entityId)
+        std::size_t size = match.mArchetype->countEntities();
+        std::tuple<Storage<VT_components> & ...> storages = match.getStorages();
+        for(std::size_t entityId = 0; entityId != size; ++entityId)
         {
-            detail::invoke<VT_components...>(std::forward<F_function>(aCallback), match, entityId);
+            detail::invoke<
+                VT_components...
+                >(
+                    std::forward<F_function>(aCallback), storages, entityId
+                    );
+        }
+    }
+}
+
+
+template <class... VT_components>
+template <class F_function>
+void Query<VT_components...>::eachPair(F_function && aCallback)
+{
+    for(auto matchItA = matches().begin();
+        matchItA != matches().end();
+        ++matchItA)
+    {
+        // Note: The reference remains valid for the loop, because all operations
+        // which could potentially invalidate it (such as adding a new archetype)
+        // are deferred until the end of the phase.
+        //Archetype & archetypeA = getArchetype(*matchItA);
+        Archetype & archetypeA = *matchItA->mArchetype;
+        std::tuple<Storage<VT_components> & ...> storagesA = matchItA->getStorages();
+        for(std::size_t entityIdA = 0;
+            entityIdA != archetypeA.countEntities();
+            ++entityIdA)
+        {
+            // remaining entities in current archetype
+            for(std::size_t entityIdB = entityIdA + 1; 
+                entityIdB != archetypeA.countEntities();
+                ++entityIdB)
+            {
+                detail::invokePair<VT_components...>(
+                        std::forward<F_function>(aCallback),
+                        storagesA,
+                        entityIdA,
+                        storagesA,
+                        entityIdB);
+            }
+
+            // remaining archetypes 
+            for(auto matchItB = matchItA + 1;
+                matchItB != matches().end();
+                ++matchItB)
+            {
+                //Archetype & archetypeB = getArchetype(*matchItB);
+                Archetype & archetypeB = *matchItB->mArchetype;
+                std::tuple<Storage<VT_components> & ...> storagesB = matchItB->getStorages();
+                for(std::size_t entityIdB = 0; 
+                    entityIdB != archetypeB.countEntities();
+                    ++entityIdB)
+                {
+                    detail::invokePair<VT_components...>(
+                            std::forward<F_function>(aCallback),
+                            storagesA,
+                            entityIdA,
+                            storagesB,
+                            entityIdB);
+                }
+            }
         }
     }
 }
