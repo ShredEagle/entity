@@ -70,6 +70,8 @@ public:
     {
         MatchedArchetype(Archetype * aArchetype);
 
+        std::tuple<Storage<VT_components> & ...> getStorages() const;
+
         Archetype * mArchetype;
         // IMPORTANT: Cannot cache the pointer to components' storage
         // because the storage is currently a vector (i.e. prone to relocation)
@@ -121,6 +123,18 @@ void invoke(F_callback aCallback,
 }
 
 
+template <class... VT_components, class F_callback>
+void invokePair(F_callback aCallback,
+                std::tuple<Storage<VT_components> & ...> aStoragesA,
+                EntityIndex aIndexInArchetypeA,
+                std::tuple<Storage<VT_components> & ...> aStoragesB,
+                EntityIndex aIndexInArchetypeB)
+{
+    aCallback(std::get<Storage<VT_components> &>(aStoragesA).mArray[aIndexInArchetypeA]...,
+              std::get<Storage<VT_components> &>(aStoragesB).mArray[aIndexInArchetypeB]...);
+}
+
+
 //
 // Implementations
 //
@@ -130,6 +144,13 @@ QueryBackend<VT_components...>::MatchedArchetype::MatchedArchetype(Archetype * a
     mArchetype{aArchetype},
     mComponentIndices{mArchetype->getStoreIndex<VT_components>()...}
 {}
+
+
+template <class... VT_components>
+std::tuple<Storage<VT_components> & ...> QueryBackend<VT_components...>::MatchedArchetype::getStorages() const
+{
+    return std::tie(mArchetype->getStorage(std::get<StorageIndex<VT_components>>(mComponentIndices))...);
+}
 
 
 template <class... VT_components>
@@ -215,8 +236,7 @@ void QueryBackend<VT_components...>::signal_impl(
     assert(aRecord.mIndex < found->mArchetype->countEntities());
     if (!aListeners.empty())
     {
-        std::tuple<Storage<VT_components> & ...> storages = std::tie(
-            found->mArchetype->getStorage(std::get<StorageIndex<VT_components>>(found->mComponentIndices))...);
+        std::tuple<Storage<VT_components> & ...> storages = found->getStorages();
 
         for(auto & callback : aListeners)
         {
