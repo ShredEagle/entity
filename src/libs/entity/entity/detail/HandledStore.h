@@ -35,6 +35,9 @@ public:
     auto end() const
     { return mStore.end(); }
 
+    auto empty() const
+    { return mStore.empty(); }
+
 private:
     Handle mNextHandle{0};
     std::map<Handle, T_data> mStore;

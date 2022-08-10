@@ -139,7 +139,6 @@ public:
 template <class... VT_components, class F_callback>
 void invoke(F_callback aCallback,
             std::tuple<Storage<VT_components> & ...> aStorages,
-            //const typename QueryBackend<VT_components...>::MatchedArchetype & aMatch,
             EntityIndex aIndexInArchetype)
 {
     aCallback(std::get<Storage<VT_components> &>(aStorages).mArray[aIndexInArchetype]...);
@@ -261,10 +260,10 @@ void QueryBackend<VT_components...>::signal_impl(
         // TODO factorize with the equivalent code in Query.h
         std::tuple<Storage<VT_components> & ...> storages =
             std::tie(
-                found->mArchetype->getStorage(
+                archetype.getStorage(
                     std::get<StorageIndex<VT_components>>(found->mComponentIndices))...);
 
-        for(auto & callback : aListeners)
+        for(auto & [_handle, callback] : aListeners)
         {
             invoke<VT_components...>(callback, storages, aRecord.mIndex);
         }

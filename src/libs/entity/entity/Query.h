@@ -141,10 +141,11 @@ void Query<VT_components...>::each(F_function && aCallback)
         // Note: The reference remains valid for the loop, because all operations
         // which could potentially invalidate it (such as adding a new archetype)
         // are deferred until the end of the phase.
-        std::size_t size = match.mArchetype->countEntities();
+        Archetype & archetype = getArchetype(match);
+        std::size_t size = archetype.countEntities();
         std::tuple<Storage<VT_components> & ...> storages =
             std::tie(
-                match.mArchetype->getStorage(
+                archetype.getStorage(
                     std::get<StorageIndex<VT_components>>(match.mComponentIndices))...);
         for(std::size_t entityId = 0; entityId != size; ++entityId)
         {
