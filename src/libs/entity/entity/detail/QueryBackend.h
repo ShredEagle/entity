@@ -8,6 +8,7 @@
 #include <entity/Entity.h>
 
 #include <algorithm>
+#include <concepts>
 #include <list>
 
 

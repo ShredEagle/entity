@@ -18,7 +18,7 @@
 namespace ad {
 namespace ent {
 
-
+class State;
 // TODO implement reuse of handle from the free list
 // TODO implement handle free list hosted implicitly in a vector of handles
 class EntityManager
