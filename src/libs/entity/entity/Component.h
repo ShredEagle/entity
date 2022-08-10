@@ -3,6 +3,7 @@
 
 #include <set>
 #include <typeindex>
+#include <limits>
 #include <vector>
 
 
