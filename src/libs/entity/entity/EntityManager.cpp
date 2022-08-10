@@ -1,4 +1,5 @@
 #include "EntityManager.h"
+#include "entity/Component.h"
 
 #include <iterator>
 
@@ -7,13 +8,14 @@ namespace ad {
 namespace ent {
 
 
-Archetype & EntityManager::getArchetype(const TypeSet & aTypeSet)
+Handle<Archetype> EntityManager::InternalState::getArchetypeHandle(const TypeSet & aTypeSet,
+                                                                   EntityManager & aManager)
 {
-    return mArchetypes.at(aTypeSet);
+    return {mArchetypes.getKey(aTypeSet), aManager};
 }
 
 
-std::size_t EntityManager::countLiveEntities() const
+std::size_t EntityManager::InternalState::countLiveEntities() const
 {
     assert(mHandleMap.size() >= mFreedHandles.size());
 
@@ -21,7 +23,7 @@ std::size_t EntityManager::countLiveEntities() const
 }
 
 
-EntityRecord & EntityManager::record(HandleKey aKey)
+EntityRecord & EntityManager::InternalState::record(HandleKey<Entity> aKey)
 {
     // TODO implement checks:
     // * that the generation is matching
@@ -30,15 +32,21 @@ EntityRecord & EntityManager::record(HandleKey aKey)
 }
 
 
-void EntityManager::freeHandle(HandleKey aKey)
+Archetype & EntityManager::InternalState::archetype(HandleKey<Archetype> aHandle)
 {
-    record(aKey).mArchetype = nullptr;
+    return mArchetypes.get(aHandle);
+}
+
+
+void EntityManager::InternalState::freeHandle(HandleKey<Entity> aKey)
+{
+    record(aKey).mIndex = gInvalidIndex;
     mFreedHandles.push_back(std::move(aKey));
 }
 
 
 std::vector<detail::QueryBackendBase *>
-EntityManager::getExtraQueryBackends(const Archetype & aCompared,
+EntityManager::InternalState::getExtraQueryBackends(const Archetype & aCompared,
                                      const Archetype & aReference) const
 {
     using QueryBackendSet = std::set<detail::QueryBackendBase *>;
@@ -66,6 +74,28 @@ EntityManager::getExtraQueryBackends(const Archetype & aCompared,
                         initialQueries.begin(), initialQueries.end(),
                         std::back_inserter(difference));
     return difference;
+}
+
+
+State EntityManager::saveState()
+{
+    // move the currently active InternalState to the backup State.
+    State backup{std::move(mState)};
+    // Default intialize a new state in the EntityManager.
+    // From this point, all accesses via handles will resolve into this new state.
+    mState = std::make_unique<InternalState>();
+    // Copy-assign the saved state into the defaulted new active state.
+    *mState = *backup.mState;
+
+    return backup;
+}
+
+
+void EntityManager::restoreState(const State & aState)
+{
+    assert(aState.mState != nullptr); // the default constructed
+    mState = std::make_unique<InternalState>();
+    *mState = *aState.mState;
 }
 
 

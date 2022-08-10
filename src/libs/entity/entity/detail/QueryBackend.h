@@ -1,8 +1,11 @@
 #pragma once
 
 
-#include "../Entity.h"
-#include "../Archetype.h"
+#include "HandledStore.h"
+
+#include <entity/Archetype.h>
+#include <entity/ArchetypeStore.h>
+#include <entity/Entity.h>
 
 #include <algorithm>
 #include <list>
@@ -18,49 +21,68 @@ class QueryBackendBase
 public:
     virtual ~QueryBackendBase() = default;
 
-    virtual void pushIfMatches(const TypeSet & aCandidateTypeSet, Archetype & aCandidate) = 0;
+    virtual std::unique_ptr<QueryBackendBase> clone() const = 0;
+
+    virtual void pushIfMatches(const TypeSet & aCandidateTypeSet,
+                               HandleKey<Archetype> aCandidate,
+                               const ArchetypeStore & aStore) = 0;
     virtual void signalEntityAdded(Handle<Entity> aEntity, const EntityRecord & aRecord) = 0;
     virtual void signalEntityRemoved(Handle<Entity> aEntity, const EntityRecord & aRecord) = 0;
 };
 
 
-// Implementation note: instances of this templates are hosted by the EntityManager,
-// which maintains then in amap.
-// There should be only one instance (for a given VT_components...) per EntityManager.
-// This allows to cache queries (all identicaly queries share the single backend instance),
-// and the EntityManager is responsible for keeping the backends up to date.
-
-// TODO Ad 2022/07/13: FRAMESAVE Ensure the Listening dtor of a discarded frame does not
+// TODO Ad 2022/07/13 #state p1: FRAMESAVE Ensure the Listening dtor of a discarded frame does not
 // stop the listening in active frames! (i.e. the opposite of the usual problem, we have to make
 // sure the effects are not accross frames). Yet the copy in a new frame should be able to delete
 // in the new frame...
 // TODO Ad 2022/07/13: Replace with Handy guard, e.g. using Listening = Guard;
 class [[nodiscard]] Listening
 {
+    using Callback_t = std::function<void(QueryBackendBase &)>;
+
 public:
     template <class F_guard>
-    explicit Listening(F_guard && aGuard) :
-        mGuard{std::make_unique<std::function<void()>>(std::forward<F_guard>(aGuard))}
+    requires std::invocable<F_guard, QueryBackendBase &>
+    explicit Listening(QueryBackendBase * aBackend, F_guard && aGuard) :
+        mBackend{aBackend},
+        mGuard{std::make_unique<Callback_t>(std::forward<F_guard>(aGuard))}
     {}
 
-    Listening(const Listening &) = delete;
-    Listening & operator=(const Listening &) = delete;
+    Listening(const Listening & aRhs, QueryBackendBase * aBackend) :
+        mGuard{std::make_unique<Callback_t>(*aRhs.mGuard)},
+        mBackend{aBackend}
+    {
+        // If both Listening remove from the same backend, there is a logic error.
+        assert(mBackend != aRhs.mBackend);
+    }
 
     Listening(Listening &&) = default;
     Listening & operator=(Listening &&) = default;
 
     ~Listening()
     {
-        if(mGuard)
+        if (mGuard)
         {
-            (*mGuard)();
+            std::invoke(*mGuard, *mBackend);
         }
     }
+
+    void redirect( QueryBackendBase * aBackend)
+    {
+        mBackend = aBackend;
+    }
+
 private:
-    std::unique_ptr<std::function<void()>> mGuard;
+    std::unique_ptr<Callback_t> mGuard;
+    QueryBackendBase * mBackend;
 };
 
 
+// Implementation note: instances of this templates are hosted by the EntityManager,
+// which maintains then in a map.
+// There should be only one instance (for a given VT_components...) per EntityManager.
+// This allows to cache queries (all identicaly queries share the single backend instance),
+// and the EntityManager is responsible for keeping the backends up to date.
 template <class... VT_components>
 class QueryBackend : public QueryBackendBase
 {
@@ -68,9 +90,9 @@ class QueryBackend : public QueryBackendBase
 public:
     struct MatchedArchetype
     {
-        MatchedArchetype(Archetype * aArchetype);
+        MatchedArchetype(HandleKey<Archetype> aArchetype, const ArchetypeStore & aStore);
 
-        Archetype * mArchetype;
+        HandleKey<Archetype> mArchetype;
         // IMPORTANT: Cannot cache the pointer to components' storage
         // because the storage is currently a vector (i.e. prone to relocation)
         // This would also complicate the frame-state implementation.
@@ -81,8 +103,9 @@ public:
     using AddedEntityCallback = std::function<void(VT_components &...)>;
     using RemovedEntityCallback = std::function<void(VT_components &...)>;
 
-    template <class T_pairIterator>
-    QueryBackend(T_pairIterator aFirst, T_pairIterator aLast);
+    QueryBackend(const ArchetypeStore & aArchetypes);
+
+    std::unique_ptr<QueryBackendBase> clone() const final;
 
     template <class F_function>
     Listening listenEntityAdded(F_function && aCallback);
@@ -90,7 +113,9 @@ public:
     template <class F_function>
     Listening listenEntityRemoved(F_function && aCallback);
 
-    void pushIfMatches(const TypeSet & aCandidateTypeSet, Archetype & aCandidate) final;
+    void pushIfMatches(const TypeSet & aCandidateTypeSet,
+                       HandleKey<Archetype> aCandidate,
+                       const ArchetypeStore & aStore) final;
 
     void signalEntityAdded(Handle<Entity> aEntity, const EntityRecord & aRecord) final;
 
@@ -105,8 +130,8 @@ public:
 
     std::vector<MatchedArchetype> mMatchingArchetypes;
     // A list, because we can delete in the middle, and it should not invalidate other iterators.
-    std::list<AddedEntityCallback> mAddListeners;
-    std::list<RemovedEntityCallback> mRemoveListeners;
+    HandledStore<AddedEntityCallback> mAddListeners;
+    HandledStore<RemovedEntityCallback> mRemoveListeners;
 };
 
 
@@ -126,21 +151,29 @@ void invoke(F_callback aCallback,
 //
 
 template <class... VT_components>
-QueryBackend<VT_components...>::MatchedArchetype::MatchedArchetype(Archetype * aArchetype) :
+QueryBackend<VT_components...>::MatchedArchetype::MatchedArchetype(
+        HandleKey<Archetype> aArchetype,
+        const ArchetypeStore & aStore) :
     mArchetype{aArchetype},
-    mComponentIndices{mArchetype->getStoreIndex<VT_components>()...}
+    mComponentIndices{aStore.get(mArchetype).getStoreIndex<VT_components>()...}
 {}
 
 
 template <class... VT_components>
-template <class T_pairIterator>
-QueryBackend<VT_components...>::QueryBackend(T_pairIterator aFirst, T_pairIterator aLast)
+QueryBackend<VT_components...>::QueryBackend(const ArchetypeStore & aArchetypes)
 {
-    for(/**/; aFirst != aLast; ++aFirst)
+    for(auto mapping = aArchetypes.beginMap(); mapping != aArchetypes.endMap(); ++mapping)
     {
-        auto & [typeSet, archetype] = *aFirst;
-        pushIfMatches(typeSet, archetype);
+        const auto & [typeSet, archetypeKey] = *mapping;
+        pushIfMatches(typeSet, archetypeKey, aArchetypes);
     }
+}
+
+
+template <class... VT_components>
+std::unique_ptr<QueryBackendBase> QueryBackend<VT_components...>::clone() const
+{
+    return std::make_unique<QueryBackend<VT_components...>>(*this);
 }
 
 
@@ -148,11 +181,13 @@ template <class... VT_components>
 template <class F_function>
 Listening QueryBackend<VT_components...>::listenEntityAdded(F_function && aCallback)
 {
-    auto inserted = mAddListeners.emplace(mAddListeners.end(),
-                                          std::forward<F_function>(aCallback));
-    return Listening{[inserted, this]()
+    auto inserted = mAddListeners.emplace(std::forward<F_function>(aCallback));
+    return Listening{
+        this,
+        [inserted](QueryBackendBase & aBackend)
         {
-            mAddListeners.erase(inserted);
+            static_cast<QueryBackend<VT_components...> &>(aBackend)
+                .mAddListeners.erase(inserted);
         }};
 }
 
@@ -161,23 +196,26 @@ template <class... VT_components>
 template <class F_function>
 Listening QueryBackend<VT_components...>::listenEntityRemoved(F_function && aCallback)
 {
-    auto inserted = mRemoveListeners.emplace(mRemoveListeners.end(),
-                                             std::forward<F_function>(aCallback));
-    return Listening{[inserted, this]()
+    auto inserted = mRemoveListeners.emplace(std::forward<F_function>(aCallback));
+    return Listening{
+        this,
+        [inserted](QueryBackendBase & aBackend)
         {
-            mRemoveListeners.erase(inserted);
+            static_cast<QueryBackend<VT_components...> &>(aBackend)
+                .mRemoveListeners.erase(inserted);
         }};
 }
 
 
 template <class... VT_components>
 void QueryBackend<VT_components...>::pushIfMatches(const TypeSet & aCandidateTypeSet,
-                                                   Archetype & aCandidate)
+                                                   HandleKey<Archetype> aCandidate,
+                                                   const ArchetypeStore & aStore)
 {
     if(std::includes(aCandidateTypeSet.begin(), aCandidateTypeSet.end(),
                      GetTypeSet().begin(), GetTypeSet().end()))
     {
-        mMatchingArchetypes.push_back(&aCandidate);
+        mMatchingArchetypes.emplace_back(aCandidate, aStore);
     }
 }
 
@@ -206,17 +244,25 @@ void QueryBackend<VT_components...>::signal_impl(
     auto found =
         std::find_if(mMatchingArchetypes.begin(),
                      mMatchingArchetypes.end(),
-                     [&aRecord](const auto & aMatch) -> bool
+                     [&aRecord, &aEntity](const auto & aMatch) -> bool
                      {
-                       return aMatch.mArchetype == aRecord.mArchetype;
+                       return aMatch.mArchetype == aEntity.record().mArchetype;
                      });
+
+    // TODO: Can be more efficient, we already have the EntityRecord.
+    Archetype & archetype = aEntity.archetype();
 
     assert(found != mMatchingArchetypes.end());
     assert(aRecord.mIndex < found->mArchetype->countEntities());
+    // TODO this if was introduced by the refactoring to allow vectorization
+    // Can it be removed?
     if (!aListeners.empty())
     {
-        std::tuple<Storage<VT_components> & ...> storages = std::tie(
-            found->mArchetype->getStorage(std::get<StorageIndex<VT_components>>(found->mComponentIndices))...);
+        // TODO factorize with the equivalent code in Query.h
+        std::tuple<Storage<VT_components> & ...> storages =
+            std::tie(
+                found->mArchetype->getStorage(
+                    std::get<StorageIndex<VT_components>>(found->mComponentIndices))...);
 
         for(auto & callback : aListeners)
         {

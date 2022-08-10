@@ -2,20 +2,26 @@ set(TARGET_NAME entity)
 
 set(${TARGET_NAME}_HEADERS
     Archetype.h
+    ArchetypeStore.h
     Component.h
     Entity.h
     EntityManager.h
     HandleKey.h
     Query.h
+    QueryStore.h
 
     detail/QueryBackend.h
+    detail/CloningPointer.h
+    detail/HandledStore.h
 )
 
 set(${TARGET_NAME}_SOURCES
     Archetype.cpp
+    ArchetypeStore.cpp
     Entity.cpp
     EntityManager.cpp
     Query.cpp
+    QueryStore.cpp
 )
 
 source_group(TREE ${CMAKE_CURRENT_LIST_DIR}

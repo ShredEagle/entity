@@ -15,22 +15,53 @@ namespace ad {
 namespace ent {
 
 
-struct EntityRecord
-{
-    Archetype * mArchetype;
-    EntityIndex mIndex;
-};
-
-
 class EntityManager; // forward
 
 template <class T_handled>
 class Handle; // forward
 
 
-/// \brief This class allows to stack-up the operations to be
-/// deferred until the end of the phase.
-///
+template<>
+class Handle<Archetype>
+{
+    friend class EntityManager; // for construction
+
+public:
+    Archetype & get();
+
+    // Note: unused for the moment
+    //friend bool operator==(const Handle & aLhs, const Handle & aRhs)
+    //{
+    //    assert(aLhs.mStore == aRhs.mStore);
+    //    return aLhs.mKey == aRhs.mKey;
+    //}
+
+private:
+    Handle(std::size_t aKey, EntityManager & aManager) :
+        mKey{aKey},
+        mManager{aManager}
+    {}
+
+    HandleKey<Archetype> mKey;
+    EntityManager & mManager;
+};
+
+
+struct EntityRecord
+{
+    HandleKey<Archetype> mArchetype;
+    EntityIndex mIndex;
+};
+
+
+struct EntityReference
+{
+    Archetype * mArchetype;
+    EntityIndex mIndex;
+};
+
+
+/// \brief This class allows to stack-up the operations to be deferred until the end of the phase.
 class Phase
 {
 public:
@@ -79,16 +110,16 @@ public:
 
 private:
     Entity(
-        EntityRecord aRecord,
+        EntityReference aReference,
         Handle<Entity> & aHandle,
         Phase & aPhase) :
-        mRecord{std::move(aRecord)},
+        mReference{aReference},
         mHandle{aHandle},
         mPhase{aPhase}
     {}
 
     // For immediate operations
-    EntityRecord mRecord;
+    EntityReference mReference;
 
     // For  deferred operations
     Handle<Entity> & mHandle;
@@ -99,12 +130,20 @@ private:
 template <class T_handled>
 class Handle;
 
+namespace detail
+{
+    template <class...>
+    class QueryBackend;
+}
 
 template <>
 class Handle<Entity>
 {
     friend class Entity;
     friend class EntityManager;
+    // TODO remove
+    template <class...>
+    friend class detail::QueryBackend;
 
 public:
     /// \brief Checks whether the handle is valid, currently pointing to an Entity.
@@ -114,8 +153,14 @@ public:
     /// \important This handle must outlive the returned Entity.
     std::optional<Entity> get(Phase & aPhase);
 
+    friend bool operator==(const Handle & aLhs, const Handle & aRhs)
+    {
+        assert (&aLhs.mManager == &aRhs.mManager);
+        return aLhs.mKey == aRhs.mKey;
+    }
+
 private:
-    Handle(HandleKey aKey, EntityManager & aManager) :
+    Handle(HandleKey<Entity> aKey, EntityManager & aManager) :
         mKey{aKey},
         mManager{aManager}
     {}
@@ -137,12 +182,15 @@ private:
     /// The record is returned by **copy**, to prevent mutation.
     EntityRecord record() const;
 
+    EntityReference reference() const;
+
+    Archetype & archetype() const;
+
     void updateRecord(EntityRecord aNewRecord);
 
-    HandleKey mKey;
+    HandleKey<Entity> mKey;
     EntityManager & mManager;
 };
-
 
 
 //
@@ -163,7 +211,7 @@ Entity & Entity::add(T_component aComponent)
     mPhase.append(
         [handle = mHandle, component = std::move(aComponent)] () mutable
         {
-            handle.add<T_component>(component);
+            handle.add<T_component>(std::move(component));
         });
     return *this;
 }
@@ -184,14 +232,14 @@ Entity & Entity::remove()
 template <class T_component>
 bool Entity::has()
 {
-    return mRecord.mArchetype->has<T_component>();
+    return mReference.mArchetype->has<T_component>();
 }
 
 
 template <class T_component>
 T_component & Entity::get()
 {
-    return mRecord.mArchetype->get<T_component>(mRecord.mIndex);
+    return mReference.mArchetype->get<T_component>(mReference.mIndex);
 }
 
 

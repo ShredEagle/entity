@@ -11,7 +11,7 @@
 CMakeUserPresets.json
 
 # Clang tooling #
-.clangd/
+.clangd
 .cache/clangd/
 compile_commands.json
 

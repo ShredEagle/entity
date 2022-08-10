@@ -3,6 +3,7 @@
 #include "EntityManager.h"
 
 #include "detail/QueryBackend.h"
+#include "entity/Component.h"
 
 #include <numeric>
 
@@ -16,11 +17,22 @@ namespace ent {
 template <class... VT_components>
 class Query
 {
+    template <class>
+    friend class Storage;
+
 public:
     /// \brief Instantiate the query for the provided EntityManager.
     ///
     /// Caching of queries will be handled automatically.
     Query(EntityManager & aManager);
+
+    // TODO Should be private (and only allowed to be called by Storage<Query> cloning function
+    // Yet the actual copy ctor is called deep within the stl, something we do not want to befriend.
+    Query(const Query & aRhs);
+    Query & operator=(const Query & aRhs);
+
+    Query(Query && aRhs) = default;
+    Query & operator=(Query && aRhs) = default;
 
     /// \brief Number of distinct entities matching the query.
     std::size_t countMatches() const;
@@ -41,12 +53,29 @@ public:
     void onRemoveEntity(F_function && aCallback);
 
 private:
-    const std::vector<
-        typename detail::QueryBackend<VT_components...>::MatchedArchetype> & matches() const
-    { return mSharedBackend->mMatchingArchetypes; }
+    void swap(Query & aRhs);
 
-    detail::QueryBackend<VT_components...>* mSharedBackend;
+    // TODO Ad 2022/07/27 #perf p2: Have a better "handle" mechanism, e.g. an offset in an array.
+    inline static const TypeSequence gTypeSequence{getTypeSequence<VT_components...>()};
+
+    detail::QueryBackend<VT_components...> & getBackend()
+    { return *mManager->queryBackend<VT_components...>(gTypeSequence); }
+
+    const detail::QueryBackend<VT_components...> & getBackend() const
+    { return *mManager->queryBackend<VT_components...>(gTypeSequence); }
+
+    using Matched_t = typename detail::QueryBackend<VT_components...>::MatchedArchetype;
+    const std::vector<Matched_t> & matches() const
+    { return getBackend().mMatchingArchetypes; }
+
+    Archetype & getArchetype(const Matched_t & aMatch)
+    { return mManager->archetype(aMatch.mArchetype); }
+
+    const Archetype & getArchetype(const Matched_t & aMatch) const
+    { return mManager->archetype(aMatch.mArchetype); }
+
     std::vector<detail::Listening> mActiveListenings;
+    EntityManager * mManager;
 };
 
 
@@ -55,17 +84,50 @@ private:
 //
 template <class... VT_components>
 Query<VT_components...>::Query(EntityManager & aManager) :
-    mSharedBackend{aManager.getQueryBackend<VT_components...>()}
-{}
+    mManager{&aManager}
+{
+    // Ensure the query backend exists in the map.
+    aManager.getQueryBackend<VT_components...>();
+}
+
+
+template <class... VT_components>
+Query<VT_components...>::Query(const Query & aRhs) :
+    mManager{aRhs.mManager}
+{
+    // Redirect all listeners to stop listening in the backends of the current backend store.
+    for (const auto & listening : aRhs.mActiveListenings)
+    {
+        mActiveListenings.emplace_back(listening, &getBackend());
+    }
+}
+
+
+template <class... VT_components>
+Query<VT_components...> & Query<VT_components...>::operator=(const Query & aRhs)
+{
+    Query copy{aRhs};
+    swap(copy);
+    return *this;
+}
+
+
+template <class... VT_components>
+void Query<VT_components...>::swap(Query & aRhs)
+{
+    std::swap(mActiveListenings, aRhs.mActiveListenings);
+    std::swap(mManager, aRhs.mManager);
+}
 
 
 template <class... VT_components>
 std::size_t Query<VT_components...>::countMatches() const
 {
     return std::accumulate(matches().begin(), matches().end(),
-                           0, [](std::size_t accu, const auto & matched)
+                           0,
+                           [this](std::size_t accu, const auto & matched)
                            {
-                                return accu + matched.mArchetype->countEntities();
+                                return accu + getArchetype(matched).countEntities();
                            });
 }
 
@@ -76,16 +138,20 @@ void Query<VT_components...>::each(F_function && aCallback)
 {
     for(const auto & match : matches())
     {
+        // Note: The reference remains valid for the loop, because all operations
+        // which could potentially invalidate it (such as adding a new archetype)
+        // are deferred until the end of the phase.
         std::size_t size = match.mArchetype->countEntities();
-        std::tuple<Storage<VT_components> & ...> storages = std::tie(
-            match.mArchetype->getStorage(std::get<StorageIndex<VT_components>>(match.mComponentIndices))...);
+        std::tuple<Storage<VT_components> & ...> storages =
+            std::tie(
+                match.mArchetype->getStorage(
+                    std::get<StorageIndex<VT_components>>(match.mComponentIndices))...);
         for(std::size_t entityId = 0; entityId != size; ++entityId)
         {
-            detail::invoke<
-                VT_components...
-                >(
-                    std::forward<F_function>(aCallback), storages, entityId
-                    );
+            detail::invoke<VT_components...>(
+                std::forward<F_function>(aCallback),
+                storages,
+                entityId);
         }
     }
 }
@@ -96,7 +162,7 @@ template <class F_function>
 void Query<VT_components...>::onAddEntity(F_function && aCallback)
 {
     mActiveListenings.push_back(
-        mSharedBackend->listenEntityAdded(std::forward<F_function>(aCallback)));
+        getBackend().listenEntityAdded(std::forward<F_function>(aCallback)));
 }
 
 
@@ -105,7 +171,7 @@ template <class F_function>
 void Query<VT_components...>::onRemoveEntity(F_function && aCallback)
 {
     mActiveListenings.push_back(
-        mSharedBackend->listenEntityRemoved(std::forward<F_function>(aCallback)));
+        getBackend().listenEntityRemoved(std::forward<F_function>(aCallback)));
 }
 
 

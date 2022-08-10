@@ -1,6 +1,7 @@
 #include "Entity.h"
 
 #include "EntityManager.h"
+#include "entity/Component.h"
 
 namespace ad {
 namespace ent {
@@ -25,10 +26,16 @@ void Entity::erase()
 }
 
 
+Archetype & Handle<Archetype>::get()
+{
+    return mManager.archetype(mKey);
+}
+
+
 bool Handle<Entity>::isValid() const
 {
     EntityRecord current = record();
-    return current.mArchetype != nullptr;
+    return current.mIndex != gInvalidIndex;
 }
 
 
@@ -40,10 +47,10 @@ std::optional<Entity> Handle<Entity>::get(Phase & aPhase)
     // Knowing that the client has to check.
     // record() already return a nullptr archetype for invalid entities,
     // which could directly be checked by the client.
-    if(current.mArchetype != nullptr)
+    if(current.mIndex != gInvalidIndex)
     {
         return Entity{
-            record(),
+            reference(),
             *this,
             aPhase,
         };
@@ -58,15 +65,30 @@ std::optional<Entity> Handle<Entity>::get(Phase & aPhase)
 void Handle<Entity>::erase()
 {
     EntityRecord rec = record();
-    rec.mArchetype->remove(rec.mIndex, mManager);
+    archetype().remove(rec.mIndex, mManager);
 
     mManager.freeHandle(mKey);
 }
 
 
+// TODO redesign this group of retrieval functions
+// This approach tends to call record() several times...
 EntityRecord Handle<Entity>::record() const
 {
     return mManager.record(mKey);
+}
+
+Archetype & Handle<Entity>::archetype() const
+{
+    return mManager.archetype(record().mArchetype);
+}
+
+EntityReference Handle<Entity>::reference() const
+{
+    return {
+        &archetype(),
+        record().mIndex,
+    };
 }
 
 

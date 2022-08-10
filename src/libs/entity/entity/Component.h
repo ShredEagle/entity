@@ -11,6 +11,8 @@ namespace ent {
 
 
 using EntityIndex = std::size_t;
+// TODO to be removed, when the validity of an handle is to be tested based on its generation.
+constexpr EntityIndex gInvalidIndex = std::numeric_limits<EntityIndex>::max();
 
 
 using ComponentId = std::type_index;

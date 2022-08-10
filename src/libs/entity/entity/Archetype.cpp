@@ -7,6 +7,30 @@ namespace ad {
 namespace ent {
 
 
+DataStore::DataStore(const DataStore & aRhs)
+{
+    for(const auto & storagePtr : aRhs)
+    {
+        push_back(storagePtr->clone());
+    }
+}
+
+
+DataStore & DataStore::operator=(const DataStore & aRhs)
+{
+    DataStore copy{aRhs};
+    swap(copy);
+    return *this;
+}
+
+
+void DataStore::swap(DataStore & aRhs)
+{
+    std::swap(static_cast<Parent_t &>(*this),
+              static_cast<Parent_t &>(aRhs));
+}
+
+
 std::size_t Archetype::countEntities() const
 {
     auto result = mHandles.size();
@@ -85,7 +109,7 @@ void Archetype::remove(EntityIndex aEntityIndex, EntityManager & aManager)
     // Redirects the handle of the entity that will take the place of the removed entity
     {
         // This is the entity that will take the place of the removed entity in the stores.
-        HandleKey replacementEntity = mHandles.back();
+        HandleKey<Entity> replacementEntity = mHandles.back();
         // Overwrite with the same value if the replacement entity is the one at aEntityIndex
         // (i.e., if it was the last entity in the archetype).
         aManager.record(replacementEntity).mIndex = aEntityIndex;
