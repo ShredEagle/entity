@@ -8,6 +8,7 @@
 #include <entity/Entity.h>
 
 #include <algorithm>
+#include <concepts>
 #include <list>
 
 
@@ -42,7 +43,7 @@ class [[nodiscard]] Listening
 
 public:
     template <class F_guard>
-    requires std::invocable<F_guard, QueryBackendBase &>
+    requires std::invocable<typename F_guard, QueryBackendBase &>
     explicit Listening(QueryBackendBase * aBackend, F_guard && aGuard) :
         mBackend{aBackend},
         mGuard{std::make_unique<Callback_t>(std::forward<F_guard>(aGuard))}
