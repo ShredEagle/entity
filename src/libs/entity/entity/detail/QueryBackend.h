@@ -43,7 +43,7 @@ class [[nodiscard]] Listening
 
 public:
     template <class F_guard>
-    requires std::invocable<typename F_guard, QueryBackendBase &>
+    requires std::invocable<F_guard, QueryBackendBase &>
     explicit Listening(QueryBackendBase * aBackend, F_guard && aGuard) :
         mBackend{aBackend},
         mGuard{std::make_unique<Callback_t>(std::forward<F_guard>(aGuard))}
@@ -143,6 +143,18 @@ void invoke(F_callback aCallback,
             EntityIndex aIndexInArchetype)
 {
     aCallback(std::get<Storage<VT_components> &>(aStorages).mArray[aIndexInArchetype]...);
+}
+
+
+template <class... VT_components, class F_callback>
+void invokePair(F_callback aCallback,
+                std::tuple<Storage<VT_components> & ...> aStoragesA,
+                EntityIndex aIndexInArchetypeA,
+                std::tuple<Storage<VT_components> & ...> aStoragesB,
+                EntityIndex aIndexInArchetypeB)
+{
+    aCallback(std::get<Storage<VT_components> &>(aStoragesA).mArray[aIndexInArchetypeA]...,
+              std::get<Storage<VT_components> &>(aStoragesB).mArray[aIndexInArchetypeB]...);
 }
 
 
@@ -263,7 +275,6 @@ void QueryBackend<VT_components...>::signal_impl(
             std::tie(
                 archetype.getStorage(
                     std::get<StorageIndex<VT_components>>(found->mComponentIndices))...);
-
         for(auto & [_handle, callback] : aListeners)
         {
             invoke<VT_components...>(callback, storages, aRecord.mIndex);

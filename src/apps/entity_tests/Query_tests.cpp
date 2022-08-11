@@ -645,3 +645,57 @@ SCENARIO("Query iteration.")
         }
     }
 }
+
+
+SCENARIO("Pair iteration.")
+{
+    GIVEN("An entity manager with two entities.")
+    {
+        EntityManager world;
+        Handle<Entity> h1 = world.addEntity();
+        Handle<Entity> h2 = world.addEntity();
+        Handle<Entity> h3 = world.addEntity();
+
+        GIVEN("A component (A) with distinct values on each entity, a component (B) on the third entity.")
+        {
+            const double firstA = 10.;
+            const double secondA = 100.;
+            const double thirdA = 1000.;
+
+            {
+                Phase phase;
+                h1.get(phase)->add<ComponentA>({firstA});
+                h2.get(phase)->add<ComponentA>({secondA});
+                h3.get(phase)->add<ComponentA>({thirdA})
+                    .add<ComponentB>({});
+            }
+
+            GIVEN("A query on component (A).")
+            {
+                Query<ComponentA> queryA{world};
+                REQUIRE(queryA.countMatches() == 3);
+
+                WHEN("The query is iterated on each pair.")
+                {
+                    std::size_t pairCounter{0};
+                    std::set<std::pair<double, double>> expectedPairs{
+                        {10., 100},
+                        {10., 1000},
+                        {100., 1000},
+                    };
+                    queryA.eachPair([&](ComponentA & aLeft, ComponentA & aRight)
+                            {
+                                ++pairCounter;
+                                expectedPairs.erase({aLeft.d, aRight.d});
+                            });
+
+                    THEN("The callback is called on each pair.")
+                    {
+                        CHECK(pairCounter == 3);
+                        CHECK(expectedPairs.empty());
+                    }
+                }
+            }
+        }
+    }
+}
