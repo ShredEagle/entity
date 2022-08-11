@@ -167,7 +167,7 @@ QueryBackend<VT_components...>::MatchedArchetype::MatchedArchetype(
         HandleKey<Archetype> aArchetype,
         const ArchetypeStore & aStore) :
     mArchetype{aArchetype},
-    mComponentIndices{aStore.get(mArchetype).getStoreIndex<VT_components>()...}
+    mComponentIndices{aStore.get(mArchetype).template getStoreIndex<VT_components>()...}
 {}
 
 
