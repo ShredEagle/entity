@@ -265,7 +265,7 @@ void QueryBackend<VT_components...>::signal_impl(
     Archetype & archetype = aEntity.archetype();
 
     assert(found != mMatchingArchetypes.end());
-    assert(aRecord.mIndex < found->mArchetype->countEntities());
+    assert(aRecord.mIndex < archetype.countEntities());
     // TODO this if was introduced by the refactoring to allow vectorization
     // Can it be removed?
     if (!aListeners.empty())
