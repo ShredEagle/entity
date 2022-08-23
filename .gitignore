@@ -10,6 +10,14 @@
 # CMake
 CMakeUserPresets.json
 
+# Conan
+# It tends to put those files in the working directory
+conan.lock
+conanbuildinfo.txt
+conaninfo.txt
+graph_info.json
+conan_imports_manifest.txt
+
 # Clang tooling #
 .clangd
 .cache/clangd/
