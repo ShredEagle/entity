@@ -7,6 +7,8 @@ project(Entity VERSION "${BUILD_VERSION}")
 # Setup cmake helpers in 'cmake' submodule
 include ("cmake/include.cmake")
 
+cmc_include_conan_configuration()
+
 # Enable the grouping target in folders, when available in IDE.
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
