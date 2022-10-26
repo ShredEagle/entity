@@ -1,20 +1,16 @@
-name: Build, test, deploy recipe
+name: Manual workflow
 
-on:
-  push:
-    tags:
-      - v*.*.*
+on: workflow_dispatch
 
 jobs:
-  extract_tag:
-    uses: shredeagle/reusable-workflows/.github/workflows/extract_version_tag.yml@v2.3.2
-
-  build:
-    needs: extract_tag
+  build-test:
     uses: shredeagle/reusable-workflows/.github/workflows/main_build.yml@v2.3.2
     with:
-      deployrecipe_userchannel: adnn/stable
-      version: ${{ needs.extract_tag.outputs.version }}
+      # Disable macos while spdlog crashes its compiler
+      # see: https://github.com/conan-io/conan-center-index/issues/8480
+      os: >-
+        ["ubuntu-20.04", "windows-2019"]
+      step_runtests: false
     secrets:
       SHREDROBOT_GITHUB_TOKEN: ${{ secrets.SHREDROBOT_GITHUB_TOKEN }}
       ACTION_CACHENAME: ${{ secrets.ACTION_CACHENAME }}
