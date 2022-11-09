@@ -46,8 +46,8 @@ public:
     template <class F_guard>
     requires std::invocable<F_guard, QueryBackendBase &>
     explicit Listening(QueryBackendBase * aBackend, F_guard && aGuard) :
-        mBackend{aBackend},
-        mGuard{std::make_unique<Callback_t>(std::forward<F_guard>(aGuard))}
+        mGuard{std::make_unique<Callback_t>(std::forward<F_guard>(aGuard))},
+        mBackend{aBackend}
     {}
 
     Listening(const Listening & aRhs, QueryBackendBase * aBackend) :
@@ -235,7 +235,7 @@ void QueryBackend<VT_components...>::signal_impl(
     auto found =
         std::find_if(mMatchingArchetypes.begin(),
                      mMatchingArchetypes.end(),
-                     [&aRecord, &aEntity](const auto & aMatch) -> bool
+                     [&aEntity](const auto & aMatch) -> bool
                      {
                        return aMatch.mArchetype == aEntity.record().mArchetype;
                      });
