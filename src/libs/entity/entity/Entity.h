@@ -39,11 +39,11 @@ public:
 private:
     Handle(std::size_t aKey, EntityManager & aManager) :
         mKey{aKey},
-        mManager{aManager}
+        mManager{&aManager}
     {}
 
     HandleKey<Archetype> mKey;
-    EntityManager & mManager;
+    EntityManager * mManager;
 };
 
 
@@ -89,10 +89,6 @@ class Entity
     friend class Handle<Entity>;
 
 public:
-    /// \warning Thread unsafe!
-    // TODO this one should be made thread safe in priority (because it does not need to be deferred)
-    // An idea to evaluate: could it be lock-free via read-modify-write?
-    // see: https://preshing.com/20120612/an-introduction-to-lock-free-programming/
     template <class T_component>
     Entity & add(T_component aComponent);
 
@@ -162,7 +158,7 @@ public:
 private:
     Handle(HandleKey<Entity> aKey, EntityManager & aManager) :
         mKey{aKey},
-        mManager{aManager}
+        mManager{&aManager}
     {}
 
     template <class T_component>
@@ -189,7 +185,9 @@ private:
     void updateRecord(EntityRecord aNewRecord);
 
     HandleKey<Entity> mKey;
-    EntityManager & mManager;
+    // Made into a pointer, so Handle<Entity>, and the types it composes, can be assigned
+    // (assignment is currently a requirement on types used as components).
+    EntityManager * mManager;
 };
 
 

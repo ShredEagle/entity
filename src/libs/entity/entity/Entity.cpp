@@ -28,7 +28,7 @@ void Entity::erase()
 
 Archetype & Handle<Archetype>::get()
 {
-    return mManager.archetype(mKey);
+    return mManager->archetype(mKey);
 }
 
 
@@ -65,9 +65,9 @@ std::optional<Entity> Handle<Entity>::get(Phase & aPhase)
 void Handle<Entity>::erase()
 {
     EntityRecord rec = record();
-    archetype().remove(rec.mIndex, mManager);
+    archetype().remove(rec.mIndex, *mManager);
 
-    mManager.freeHandle(mKey);
+    mManager->freeHandle(mKey);
 }
 
 
@@ -75,12 +75,12 @@ void Handle<Entity>::erase()
 // This approach tends to call record() several times...
 EntityRecord Handle<Entity>::record() const
 {
-    return mManager.record(mKey);
+    return mManager->record(mKey);
 }
 
 Archetype & Handle<Entity>::archetype() const
 {
-    return mManager.archetype(record().mArchetype);
+    return mManager->archetype(record().mArchetype);
 }
 
 EntityReference Handle<Entity>::reference() const
@@ -95,7 +95,7 @@ EntityReference Handle<Entity>::reference() const
 void Handle<Entity>::updateRecord(EntityRecord aNewRecord)
 {
     // Must mutate the underlying record, so it cannot use this->record().
-    mManager.record(mKey) = aNewRecord;
+    mManager->record(mKey) = aNewRecord;
 }
 
 

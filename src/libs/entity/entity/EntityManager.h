@@ -91,6 +91,8 @@ public:
     /// \warning Thread unsafe!
     // TODO #thread P1: should be made thread safe (take a look at lock-free approaches)
     // because this operation is not deferred (so parallel jobs could be doing it concurrently)
+    // An idea to evaluate: could it be lock-free via read-modify-write?
+    // see: https://preshing.com/20120612/an-introduction-to-lock-free-programming/
     Handle<Entity> addEntity()
     { return mState->addEntity(*this); }
 
@@ -171,16 +173,16 @@ void Handle<Entity>::add(T_component aComponent)
     HandleKey<Archetype> initialArchetypeKey = initialRecord.mArchetype;
 
     HandleKey<Archetype> targetArchetypeKey =
-        mManager.extendArchetype<T_component>(mManager.archetype(initialArchetypeKey));
-    Archetype & targetArchetype = mManager.archetype(targetArchetypeKey);
+        mManager->extendArchetype<T_component>(mManager->archetype(initialArchetypeKey));
+    Archetype & targetArchetype = mManager->archetype(targetArchetypeKey);
 
     // The extend might have invalidate the archetype reference
     // So take it only now.
-    Archetype & initialArchetype = mManager.archetype(initialArchetypeKey);
+    Archetype & initialArchetype = mManager->archetype(initialArchetypeKey);
 
     // The target archetype will grow by one: the size before insertion will be the inserted index.
     EntityIndex newIndex = targetArchetype.countEntities();
-    initialArchetype.move(initialRecord.mIndex, targetArchetype, mManager);
+    initialArchetype.move(initialRecord.mIndex, targetArchetype, *mManager);
 
     // TODO ideally, we get rid of this test, so the implementations is as fast as possible
     // when the component is not present,
@@ -206,7 +208,7 @@ void Handle<Entity>::add(T_component aComponent)
 
     // Notify the query backends that match target archetype, but not source archetype,
     // that a new entity was added.
-    auto addedBackends = mManager.getExtraQueryBackends(targetArchetype, initialArchetype);
+    auto addedBackends = mManager->getExtraQueryBackends(targetArchetype, initialArchetype);
     for (const auto & addedQuery : addedBackends)
     {
         addedQuery->signalEntityAdded(*this, newRecord);
@@ -221,13 +223,13 @@ void Handle<Entity>::remove()
     HandleKey<Archetype> initialArchetypeKey = initialRecord.mArchetype;
 
     HandleKey<Archetype> targetArchetypeKey =
-        mManager.restrictArchetype<T_component>(mManager.archetype(initialArchetypeKey));
-    Archetype & targetArchetype = mManager.archetype(targetArchetypeKey);
+        mManager->restrictArchetype<T_component>(mManager->archetype(initialArchetypeKey));
+    Archetype & targetArchetype = mManager->archetype(targetArchetypeKey);
 
-    Archetype & initialArchetype = mManager.archetype(initialArchetypeKey);
+    Archetype & initialArchetype = mManager->archetype(initialArchetypeKey);
     // Notify the query backends that match source archetype, but not target archetype,
     // that the entity is being removed.
-    auto removedBackends = mManager.getExtraQueryBackends(initialArchetype, targetArchetype);
+    auto removedBackends = mManager->getExtraQueryBackends(initialArchetype, targetArchetype);
     for (const auto & removedQuery : removedBackends)
     {
         removedQuery->signalEntityRemoved(*this, initialRecord);
@@ -235,7 +237,7 @@ void Handle<Entity>::remove()
 
     // The target archetype will grow by one: the size before insertion will be the inserted index.
     EntityIndex newIndex = targetArchetype.countEntities();
-    initialArchetype.move(initialRecord.mIndex, targetArchetype, mManager);
+    initialArchetype.move(initialRecord.mIndex, targetArchetype, *mManager);
 
     if (!initialArchetype.has<T_component>()) [[unlikely]]
     {
