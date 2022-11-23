@@ -168,7 +168,7 @@ SCENARIO("Pair simple iteration.")
 }
 
 
-SCENARIO("Query adavanced iteration.")
+SCENARIO("Query iteration with handles.")
 {
     GIVEN("An entity manager with two entities.")
     {
@@ -207,7 +207,7 @@ SCENARIO("Query adavanced iteration.")
                     std::set<EntityIndex> visitedIds;
                     std::size_t entityCounter{0};
                     Phase dummy{};
-                    queryAB.eachHandle([&](Handle<Entity> aEntity, ComponentA & a, ComponentB & b)
+                    queryAB.each([&](Handle<Entity> aEntity, ComponentA & a, ComponentB & b)
                             {
                                 visitedIds.insert(aEntity.id());
                                 ++entityCounter;

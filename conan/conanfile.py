@@ -21,7 +21,9 @@ class EntityConan(ConanFile):
         "visibility": "hidden"
     }
 
-    #requires = ()
+    requires = (
+        ("handy/acd90c0549@adnn/develop"),
+    )
 
     # Note: It seems conventionnal to add CMake build requirement
     # directly to the build profile.
