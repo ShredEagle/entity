@@ -2,6 +2,7 @@
 
 
 #include "HandledStore.h"
+#include "Invoker.h"
 
 #include <entity/Archetype.h>
 #include <entity/ArchetypeStore.h>
@@ -136,28 +137,6 @@ public:
 };
 
 
-/// \brief Invoke a callback on a matched archetype, for a given entity in the archetype.
-template <class... VT_components, class F_callback>
-void invoke(F_callback aCallback,
-            std::tuple<Storage<VT_components> & ...> aStorages,
-            EntityIndex aIndexInArchetype)
-{
-    aCallback(std::get<Storage<VT_components> &>(aStorages).mArray[aIndexInArchetype]...);
-}
-
-
-template <class... VT_components, class F_callback>
-void invokePair(F_callback aCallback,
-                std::tuple<Storage<VT_components> & ...> aStoragesA,
-                EntityIndex aIndexInArchetypeA,
-                std::tuple<Storage<VT_components> & ...> aStoragesB,
-                EntityIndex aIndexInArchetypeB)
-{
-    aCallback(std::get<Storage<VT_components> &>(aStoragesA).mArray[aIndexInArchetypeA]...,
-              std::get<Storage<VT_components> &>(aStoragesB).mArray[aIndexInArchetypeB]...);
-}
-
-
 //
 // Implementations
 //
@@ -277,7 +256,8 @@ void QueryBackend<VT_components...>::signal_impl(
                     std::get<StorageIndex<VT_components>>(found->mComponentIndices))...);
         for(auto & [_handle, callback] : aListeners)
         {
-            invoke<VT_components...>(callback, storages, aRecord.mIndex);
+            // It is currently hardcoded that the signals' callback are taking all components, in order.
+            Invoker<std::tuple<VT_components...>>::template invoke<VT_components...>(callback, storages, aRecord.mIndex);
         }
     }
 }

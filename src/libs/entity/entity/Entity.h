@@ -137,6 +137,7 @@ class Handle<Entity>
 {
     friend class Entity;
     friend class EntityManager;
+    template <class...> friend class Query; // Instantiates Handle on iteration.
     // TODO remove
     template <class...>
     friend class detail::QueryBackend;
@@ -153,6 +154,11 @@ public:
     {
         assert (&aLhs.mManager == &aRhs.mManager);
         return aLhs.mKey == aRhs.mKey;
+    }
+
+    EntityIndex id() const
+    {
+        return mKey;
     }
 
 private:

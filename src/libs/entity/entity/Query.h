@@ -1,9 +1,12 @@
 #pragma once
 
+#include "Component.h"
 #include "EntityManager.h"
 
+#include "detail/Invoker.h"
 #include "detail/QueryBackend.h"
-#include "entity/Component.h"
+
+#include <handy/FunctionTraits.h>
 
 #include <numeric>
 
@@ -141,6 +144,7 @@ std::size_t Query<VT_components...>::countMatches() const
                            });
 }
 
+// TODO replace F_function with T_function
 
 template <class... VT_components>
 template <class F_function>
@@ -153,10 +157,12 @@ void Query<VT_components...>::each(F_function && aCallback)
         // are deferred until the end of the phase.
         std::size_t size = getArchetype(match).countEntities();
         std::tuple<Storage<VT_components> & ...> storages = getStorages(match);
+        const std::vector<HandleKey<Entity>> & handleKeys = getArchetype(match).getEntityIndices();
         for(std::size_t entityId = 0; entityId != size; ++entityId)
         {
-            detail::invoke<VT_components...>(
+            detail::Invoker<handy::FunctionArgument_tuple<F_function>>::template invoke<VT_components...>(
                 std::forward<F_function>(aCallback),
+                Handle<Entity>{handleKeys[entityId], *mManager},
                 storages,
                 entityId);
         }
@@ -177,6 +183,7 @@ void Query<VT_components...>::eachPair(F_function && aCallback)
         // are deferred until the end of the phase.
         Archetype & archetypeA = getArchetype(*matchItA);
         std::tuple<Storage<VT_components> & ...> storagesA = getStorages(*matchItA);
+        const std::vector<HandleKey<Entity>> & handleKeysA = getArchetype(*matchItA).getEntityIndices();
         for(std::size_t entityIdA = 0;
             entityIdA != archetypeA.countEntities();
             ++entityIdA)
@@ -186,10 +193,12 @@ void Query<VT_components...>::eachPair(F_function && aCallback)
                 entityIdB != archetypeA.countEntities();
                 ++entityIdB)
             {
-                detail::invokePair<VT_components...>(
+                detail::InvokerPair<handy::FunctionArgument_tuple<F_function>>::template invoke<VT_components...>(
                         std::forward<F_function>(aCallback),
+                        Handle<Entity>{handleKeysA[entityIdA], *mManager},
                         storagesA,
                         entityIdA,
+                        Handle<Entity>{handleKeysA[entityIdB], *mManager},
                         storagesA,
                         entityIdB);
             }
@@ -201,14 +210,17 @@ void Query<VT_components...>::eachPair(F_function && aCallback)
             {
                 Archetype & archetypeB = getArchetype(*matchItB);
                 std::tuple<Storage<VT_components> & ...> storagesB = getStorages(*matchItB);
+                const std::vector<HandleKey<Entity>> & handleKeysB = getArchetype(*matchItB).getEntityIndices();
                 for(std::size_t entityIdB = 0;
                     entityIdB != archetypeB.countEntities();
                     ++entityIdB)
                 {
-                    detail::invokePair<VT_components...>(
+                    detail::InvokerPair<handy::FunctionArgument_tuple<F_function>>::template invoke<VT_components...>(
                             std::forward<F_function>(aCallback),
+                            Handle<Entity>{handleKeysA[entityIdA], *mManager},
                             storagesA,
                             entityIdA,
+                            Handle<Entity>{handleKeysB[entityIdB], *mManager},
                             storagesB,
                             entityIdB);
                 }

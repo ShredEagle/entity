@@ -10,9 +10,10 @@ set(${TARGET_NAME}_HEADERS
     Query.h
     QueryStore.h
 
-    detail/QueryBackend.h
     detail/CloningPointer.h
     detail/HandledStore.h
+    detail/Invoker.h
+    detail/QueryBackend.h
 )
 
 set(${TARGET_NAME}_SOURCES
@@ -48,9 +49,9 @@ set_target_properties(${TARGET_NAME} PROPERTIES
 
 cmc_find_dependencies()
 
-#target_link_libraries(${TARGET_NAME}
-#    PUBLIC
-#)
+target_link_libraries(${TARGET_NAME}
+    PUBLIC ad::handy
+)
 
 
 ##
