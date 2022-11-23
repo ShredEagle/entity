@@ -188,6 +188,10 @@ public:
     template <class T_component>
     Storage<T_component> & getStorage(StorageIndex<T_component> aComponentIndex);
 
+    /// \attention implementation detail, intended for use by Query iteration.
+    const std::vector<HandleKey<Entity>> getEntityIndices() const
+    { return mHandles; }
+
 private:
     //std::size_t mSize{0};
     // TODO cache typeset, or even better only have a typeset, so the components are ordered

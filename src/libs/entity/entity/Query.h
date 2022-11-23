@@ -42,6 +42,9 @@ public:
     void each(F_function && aCallback);
 
     template <class F_function>
+    void eachHandle(F_function && aCallback);
+
+    template <class F_function>
     void eachPair(F_function && aCallback);
 
     // TODO Ad 2022/07/13: Should the query notify of the potential existence of entities
@@ -157,6 +160,30 @@ void Query<VT_components...>::each(F_function && aCallback)
         {
             detail::invoke<VT_components...>(
                 std::forward<F_function>(aCallback),
+                storages,
+                entityId);
+        }
+    }
+}
+
+
+template <class... VT_components>
+template <class F_function>
+void Query<VT_components...>::eachHandle(F_function && aCallback)
+{
+    for(const auto & match : matches())
+    {
+        // Note: The reference remains valid for the loop, because all operations
+        // which could potentially invalidate it (such as adding a new archetype)
+        // are deferred until the end of the phase.
+        std::size_t size = getArchetype(match).countEntities();
+        std::tuple<Storage<VT_components> & ...> storages = getStorages(match);
+        const std::vector<HandleKey<Entity>> & handleKeys = getArchetype(match).getEntityIndices();
+        for(std::size_t entityId = 0; entityId != size; ++entityId)
+        {
+            detail::invoke<VT_components...>(
+                std::forward<F_function>(aCallback),
+                Handle<Entity>{handleKeys[entityId], *mManager},
                 storages,
                 entityId);
         }

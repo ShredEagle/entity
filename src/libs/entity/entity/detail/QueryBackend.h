@@ -147,6 +147,16 @@ void invoke(F_callback aCallback,
 
 
 template <class... VT_components, class F_callback>
+void invoke(F_callback aCallback,
+            Handle<Entity> aHandle,
+            std::tuple<Storage<VT_components> & ...> aStorages,
+            EntityIndex aIndexInArchetype)
+{
+    aCallback(aHandle, std::get<Storage<VT_components> &>(aStorages).mArray[aIndexInArchetype]...);
+}
+
+
+template <class... VT_components, class F_callback>
 void invokePair(F_callback aCallback,
                 std::tuple<Storage<VT_components> & ...> aStoragesA,
                 EntityIndex aIndexInArchetypeA,

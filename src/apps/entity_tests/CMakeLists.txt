@@ -3,11 +3,15 @@ set(TARGET_NAME ${_lower_project_name}_tests)
 
 set(${TARGET_NAME}_HEADERS
     catch.hpp
+
+    Components_helpers.h
+    Inspector.h
 )
 
 set(${TARGET_NAME}_SOURCES
     Phase_tests.cpp
     Query_tests.cpp
+    QueryIteration_tests.cpp
     QueryEvent_tests.cpp
     StateBackup_tests.cpp
     Usage_tests.cpp
