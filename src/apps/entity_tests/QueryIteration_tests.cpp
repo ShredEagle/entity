@@ -232,3 +232,101 @@ SCENARIO("Query iteration with handles.")
         }
     }
 }
+
+
+SCENARIO("Query iteration with subset of components.")
+{
+    GIVEN("An entity manager with two entities.")
+    {
+        EntityManager world;
+        Handle<Entity> h1 = world.addEntity();
+        Handle<Entity> h2 = world.addEntity();
+
+        const EntityIndex h1Id = h1.id();
+        const EntityIndex h2Id = h2.id();
+
+        GIVEN("Three components (A, B) with distinct values on each entity.")
+        {
+            const double firstA = 10.;
+            const double secondA = 100.;
+
+            const std::string firstB{"first"};
+            const std::string secondB{"second"};
+
+            {
+                Phase phase;
+                h1.get(phase)
+                    ->add<ComponentA>({firstA})
+                    .add<ComponentB>({firstB});
+                h2.get(phase)
+                    ->add<ComponentA>({secondA})
+                    .add<ComponentB>({secondB});
+            }
+
+            GIVEN("A query both components (A, B).")
+            {
+                Query<ComponentA, ComponentB> queryAB{world};
+                REQUIRE(queryAB.countMatches() == 2);
+
+                WHEN("The query is iterated with a callable taking only B.")
+                {
+                    std::size_t entityCounter{0};
+                    std::vector<std::string> strings;
+                    queryAB.each([&](ComponentB & b)
+                            {
+                                ++entityCounter;
+                                strings.push_back(b.str);
+                            });
+
+                    THEN("The callback is called as many times as there are entities.")
+                    {
+                        CHECK(entityCounter == queryAB.countMatches());
+                    }
+
+                    THEN("The callback was invoked with on the two entities in order.")
+                    {
+                        CHECK(strings.at(0) == firstB);
+                        CHECK(strings.at(1) == secondB);
+                    }
+                }
+                
+                WHEN("The query is iterated with a callable taking components out of order.")
+                {
+                    std::size_t entityCounter{0};
+                    std::vector<std::string> strings;
+                    queryAB.each([&](ComponentB & b, ComponentA & a)
+                            {
+                                ++entityCounter;
+                            });
+
+                    THEN("The callback is called as many times as there are entities.")
+                    {
+                        CHECK(entityCounter == queryAB.countMatches());
+                    }
+                }
+
+                WHEN("The query is iterated with a callable taking only the handle.")
+                {
+                    std::set<EntityIndex> visitedIds;
+                    std::size_t entityCounter{0};
+                    queryAB.each([&](Handle<Entity> aEntity)
+                            {
+                                visitedIds.insert(aEntity.id());
+                                ++entityCounter;
+                            });
+
+                    THEN("The callback is called as many times as there are entities.")
+                    {
+                        CHECK(entityCounter == queryAB.countMatches());
+                    }
+
+                    THEN("The callback was invoked once for each handle, corresponding to each entity.")
+                    {
+                        CHECK(visitedIds.contains(h1Id));
+                        CHECK(visitedIds.contains(h2Id));
+                    }
+                }
+            }
+        }
+    }
+}

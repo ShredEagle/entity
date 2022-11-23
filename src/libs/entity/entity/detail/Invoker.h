@@ -26,7 +26,10 @@ struct Invoker<std::tuple<VT_callbackArgs...>>
                        std::tuple<Storage<VT_components> & ...> aStorages,
                        EntityIndex aIndexInArchetype)
     {
-        aCallback(std::get<Storage<VT_components> &>(aStorages).mArray[aIndexInArchetype]...);
+        // get on the callback arguments types in order to allow 
+        // callback taking a subset of components / out of order components.
+        aCallback(std::get<Storage<std::decay_t<VT_callbackArgs>> &>(aStorages)
+                    .mArray[aIndexInArchetype]...);
     }
 
     template <class... VT_components, class F_callback>
@@ -50,7 +53,9 @@ struct Invoker<std::tuple<Handle<Entity>, VT_callbackArgs...>>
                        std::tuple<Storage<VT_components> & ...> aStorages,
                        EntityIndex aIndexInArchetype)
     {
-        aCallback(aHandle, std::get<Storage<VT_components> &>(aStorages).mArray[aIndexInArchetype]...);
+        aCallback(aHandle,
+                  std::get<Storage<std::decay_t<VT_callbackArgs>> &>(aStorages)
+                    .mArray[aIndexInArchetype]...);
     }
 };
 
