@@ -60,16 +60,64 @@ struct Invoker<std::tuple<Handle<Entity>, VT_callbackArgs...>>
 };
 
 
-template <class... VT_components, class F_callback>
-void invokePair(F_callback aCallback,
-                std::tuple<Storage<VT_components> & ...> aStoragesA,
-                EntityIndex aIndexInArchetypeA,
-                std::tuple<Storage<VT_components> & ...> aStoragesB,
-                EntityIndex aIndexInArchetypeB)
+/// \brief An invoker for pair iteration. (i.e. Cartesian product on a Query)
+template <class T_callbackArgsTuple>
+struct InvokerPair;
+
+/// \brief Specialization for a callback not taking the entity handles.
+/// \attention This can only match with a callback taking all the query components in order twice.
+/// (As there is no delimiter between the parameters matching on A components and those matching on B components).
+/// We might replace the flat list of parameters by two tuples, allowing to take subset of components.
+template <class... VT_callbackArgsAll>
+struct InvokerPair<std::tuple<VT_callbackArgsAll ...>>
 {
-    aCallback(std::get<Storage<VT_components> &>(aStoragesA).mArray[aIndexInArchetypeA]...,
-              std::get<Storage<VT_components> &>(aStoragesB).mArray[aIndexInArchetypeB]...);
-}
+    template <class... VT_components, class F_callback>
+    static void invoke(F_callback aCallback,
+                       Handle<Entity> aHandleA,
+                       std::tuple<Storage<VT_components> & ...> aStoragesA,
+                       EntityIndex aIndexInArchetypeA,
+                       Handle<Entity> aHandleB,
+                       std::tuple<Storage<VT_components> & ...> aStoragesB,
+                       EntityIndex aIndexInArchetypeB)
+    {
+        aCallback(std::get<Storage<VT_components> &>(aStoragesA).mArray[aIndexInArchetypeA]...,
+                  std::get<Storage<VT_components> &>(aStoragesB).mArray[aIndexInArchetypeB]...);
+    }
+};
+
+// Important: This is not deducible. We wrap in std::tuple instead.
+//template <class... VT_callbackArgsLeft, class... VT_callbackArgsRight>
+//struct InvokerPair<std::tuple<Handle<Entity>, VT_callbackArgsLeft...,
+//                              Handle<Entity>, VT_callbackArgsRight...>>
+
+/// \brief Specialization for pair iteration with a callback taking the entities handles.
+///
+/// It can take different subsets of components for each entity of the pair,
+/// yet the callback must receive the components via one std::tuple for each entity.
+template <class... VT_callbackArgsLeft, class... VT_callbackArgsRight>
+struct InvokerPair<std::tuple<Handle<Entity>, std::tuple<VT_callbackArgsLeft...>,
+                              Handle<Entity>, std::tuple<VT_callbackArgsRight...>>>
+{
+    template <class... VT_components, class F_callback>
+    static void invoke(F_callback aCallback,
+                       Handle<Entity> aHandleA,
+                       std::tuple<Storage<VT_components> & ...> aStoragesA,
+                       EntityIndex aIndexInArchetypeA,
+                       Handle<Entity> aHandleB,
+                       std::tuple<Storage<VT_components> & ...> aStoragesB,
+                       EntityIndex aIndexInArchetypeB)
+    {
+        // Note: not using std::make_tuple, because it deduces the target types by decaying the parameters type.
+        aCallback(aHandleA,
+                  std::tuple<VT_callbackArgsLeft...>{
+                      std::get<Storage<std::decay_t<VT_callbackArgsLeft>> &>(aStoragesA)
+                        .mArray[aIndexInArchetypeA]...},
+                  aHandleB,  
+                  std::tuple<VT_callbackArgsRight...>{
+                      std::get<Storage<std::decay_t<VT_callbackArgsRight>> &>(aStoragesB)
+                        .mArray[aIndexInArchetypeB]...});
+    }
+};
 
 
 } // namespace detail

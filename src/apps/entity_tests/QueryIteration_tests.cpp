@@ -116,7 +116,7 @@ SCENARIO("Query simple iteration.")
 
 SCENARIO("Pair simple iteration.")
 {
-    GIVEN("An entity manager with two entities.")
+    GIVEN("An entity manager with three entities.")
     {
         EntityManager world;
         Handle<Entity> h1 = world.addEntity();
@@ -324,6 +324,104 @@ SCENARIO("Query iteration with subset of components.")
                     {
                         CHECK(visitedIds.contains(h1Id));
                         CHECK(visitedIds.contains(h2Id));
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+SCENARIO("Query pair iteration with handles and subset of components.")
+{
+    GIVEN("An entity manager with three entities.")
+    {
+        EntityManager world;
+        Handle<Entity> h1 = world.addEntity();
+        Handle<Entity> h2 = world.addEntity();
+        Handle<Entity> h3 = world.addEntity();
+
+        GIVEN("Three components (A, B) with distinct values on each entity, a component (C) on the third entity.")
+        {
+            const double firstA = 10.;
+            const double secondA = 100.;
+            const double thirdA = 1000.;
+
+            const std::string firstB{"first"};
+            const std::string secondB{"second"};
+            const std::string thirdB{"third"};
+
+            {
+                Phase phase;
+                h1.get(phase)->add<ComponentA>({firstA})
+                    .add<ComponentB>({firstB});
+                h2.get(phase)->add<ComponentA>({secondA})
+                    .add<ComponentB>({secondB});
+                h3.get(phase)->add<ComponentA>({thirdA})
+                    .add<ComponentB>({thirdB})
+                    .add<ComponentC>({});
+            }
+
+            GIVEN("A query on components (A, B).")
+            {
+                Query<ComponentA, ComponentB> queryAB{world};
+                REQUIRE(queryAB.countMatches() == 3);
+
+                WHEN("The query is iterated on each pair, A component only.")
+                {
+                    std::size_t pairCounter{0};
+                    std::set<std::pair<double, double>> expectedPairs{
+                        {10., 100},
+                        {10., 1000},
+                        {100., 1000},
+                    };
+
+                    queryAB.eachPair([&](Handle<Entity> aLeftHandle, std::tuple<ComponentA &> aLeft,
+                                         Handle<Entity> aRightHandle, std::tuple<ComponentA &> aRight)
+                            {
+                                auto & [leftA] = aLeft;  
+                                auto & [rightA] = aRight;  
+                                ++pairCounter;
+                                expectedPairs.erase({leftA.d, rightA.d});
+                            });
+
+                    THEN("The callback is called on each pair.")
+                    {
+                        CHECK(pairCounter == 3);
+                        CHECK(expectedPairs.empty());
+                    }
+                }
+                
+                WHEN("The query is iterated on each pair, A component for left, B component for right.")
+                {
+                    std::size_t pairCounter{0};
+                    std::set<std::pair<EntityIndex, EntityIndex>> visitedPairs;
+                    const std::set<std::pair<EntityIndex, EntityIndex>> expectedPairs{
+                        {h1.id(), h2.id()},
+                        {h1.id(), h3.id()},
+                        {h2.id(), h3.id()},
+                    };
+
+                    Phase dummy;
+                    queryAB.eachPair([&](Handle<Entity> aLeftHandle, std::tuple<ComponentA &> a,
+                                         Handle<Entity> aRightHandle, std::tuple<ComponentB &> b)
+                            {
+                                ++pairCounter;
+                                visitedPairs.insert({aLeftHandle.id(), aRightHandle.id()});
+
+                                // Checks that the handle corresponds to the provided components.
+                                CHECK(aLeftHandle.get(dummy)->get<ComponentA>().d == std::get<0>(a).d);
+                                CHECK(aRightHandle.get(dummy)->get<ComponentB>().str == std::get<0>(b).str);
+                            });
+
+                    THEN("The callback is called on each pair.")
+                    {
+                        CHECK(pairCounter == 3);
+                    }
+
+                    THEN("The expected pairs were visited")
+                    {
+                        CHECK(visitedPairs == expectedPairs);
                     }
                 }
             }
