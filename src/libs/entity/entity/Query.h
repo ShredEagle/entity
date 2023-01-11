@@ -63,9 +63,9 @@ private:
 
     std::tuple<Storage<VT_components> & ...>
     getStorages(const typename detail::QueryBackend<VT_components...>::MatchedArchetype & aMatch)
-    { 
+    {
         return std::tie(getArchetype(aMatch).getStorage(
-            std::get<StorageIndex<VT_components>>(aMatch.mComponentIndices))...); 
+            std::get<StorageIndex<VT_components>>(aMatch.mComponentIndices))...);
     }
 
     // TODO Ad 2022/07/27 #perf p2: Have a better "handle" mechanism, e.g. an offset in an array.
@@ -140,7 +140,9 @@ std::size_t Query<VT_components...>::countMatches() const
                            std::size_t{0},
                            [this](std::size_t accu, const auto & matched)
                            {
-                                return accu + getArchetype(matched).countEntities();
+                                // note: explicitly use this, as Clang was wrongly warning that
+                                // this is unused after its capture...
+                                return accu + this->getArchetype(matched).countEntities();
                            });
 }
 
