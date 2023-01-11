@@ -137,7 +137,7 @@ template <class... VT_components>
 std::size_t Query<VT_components...>::countMatches() const
 {
     return std::accumulate(matches().begin(), matches().end(),
-                           0,
+                           std::size_t{0},
                            [this](std::size_t accu, const auto & matched)
                            {
                                 return accu + getArchetype(matched).countEntities();
