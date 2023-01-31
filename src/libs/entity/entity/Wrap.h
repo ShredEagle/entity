@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Entity.h"
-#include "Traits.h"
 
 
 namespace ad {
@@ -15,7 +14,7 @@ namespace ent {
 ///
 /// @note Follows reference sematic. 
 /// I.e. a `const Wrap` does not allow mutation of the T_stored instance.
-template <Wrappable T_stored>
+template <class T_stored>
 class Wrap
 {
 public:
