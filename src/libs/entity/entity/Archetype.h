@@ -61,6 +61,13 @@ public:
     void * data() override
     { return mArray.data(); }
 
+    /// @brief Non-virtual function, to access the underlying array when a fully typed Storage is available.
+    T_component & operator[](std::size_t aIndex)
+    { return mArray[aIndex]; }
+
+    const T_component & operator[](std::size_t aIndex) const
+    { return mArray[aIndex]; }
+
     std::unique_ptr<StorageBase> cloneEmpty() const override
     { return std::make_unique<Storage<T_component>>(); }
 
@@ -233,6 +240,7 @@ namespace detail
 template <class T_data>
 Storage<T_data> & StorageBase::as()
 {
+    // TODO Should we assert here?
     return *reinterpret_cast<Storage<T_data> *>(this);
 }
 
