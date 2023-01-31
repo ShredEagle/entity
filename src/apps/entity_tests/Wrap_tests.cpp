@@ -11,13 +11,33 @@ using namespace ad::ent;
 
 struct MyType
 {
-    static constexpr bool is_wrappable = true;
-
     int i;
     float f;
     std::string s;
 };
 
+class TypeWithManager
+{
+public:
+    TypeWithManager(EntityManager & aWorld, int aInt) :
+        worldAddress{&aWorld},
+        i{aInt}
+    {}
+
+    int & getInt()
+    {
+        return i;
+    }
+
+    EntityManager * getWorldAddress()
+    {
+        return worldAddress;
+    }
+
+private:
+    EntityManager * worldAddress;
+    int i;
+};
 
 SCENARIO("A user type can be wrapped.")
 {
@@ -62,5 +82,39 @@ SCENARIO("A user type can be wrapped.")
                 }
             }
         }  
+    }
+}
+
+
+SCENARIO("Wrap construction.")
+{
+    GIVEN("An EntityManager.")
+    {
+        EntityManager world;
+
+        WHEN("A Wrap of MyType is instantiated for this manager, with arguments for list initialization.")
+        {
+            const std::string str{"Message string"};
+            Wrap<MyType> myType{world, 1, 12.f, str};
+
+            THEN("The list initialization values were stored.")
+            {
+                CHECK(myType->i == 1);
+                CHECK(myType->f == 12.f);
+                CHECK(myType->s == str);
+            }
+        }
+        
+        WHEN("A Wrap of TypeWithManager is instantiated for this manager, with arguments for a constructor.")
+        {
+            // Important: we did not have to repeat world argument, even though the ctor takes an EntityManager first.
+            Wrap<TypeWithManager> typeWithManager{world, 100};
+
+            THEN("The constructor was called.")
+            {
+                CHECK(typeWithManager->getInt() == 100);
+                CHECK(typeWithManager->getWorldAddress() == &world);
+            }
+        }
     }
 }

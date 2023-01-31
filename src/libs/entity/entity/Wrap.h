@@ -31,9 +31,18 @@ public:
         // Note: one drawback is that we make one phase per initialized handle.
         // If we were doing it manually, we could share one init phase among several stores.
         Phase init;
-        // TODO emplace when entity offers it
-        // TODO would be nice to automatically forward world when it is the first ctor argument
-        mWrapped.get(init)->add(T_stored{/*aWorld,*/ std::forward<VT_ctorArgs>(aCtorArgs)...});
+
+        // If the construction expression providing the EntityManager first is valid, select it.
+        if constexpr(requires {T_stored{aWorld, std::forward<VT_ctorArgs>(aCtorArgs)...};})
+        {
+            // TODO #emplace, emplace when entity offers it
+            mWrapped.get(init)->add(T_stored{aWorld, std::forward<VT_ctorArgs>(aCtorArgs)...});
+        }
+        // Otherwise, call a construction expression only providing the variadic arguments.
+        else
+        {
+            mWrapped.get(init)->add(T_stored{std::forward<VT_ctorArgs>(aCtorArgs)...});
+        }
     }
 
 
