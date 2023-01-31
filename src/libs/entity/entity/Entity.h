@@ -3,6 +3,7 @@
 
 #include "Archetype.h"
 #include "HandleKey.h"
+#include "Traits.h"
 
 #include <functional>
 #include <mutex>
@@ -139,7 +140,7 @@ class Handle<Entity>
     friend class EntityManager;
     template <class...> friend class Query; // Instantiates Handle on iteration.
 
-    template <class>
+    template <Wrappable>
     friend class Wrap;
 
     // TODO remove
