@@ -65,7 +65,7 @@ class EntityManager
         // TODO This could be massively optimized by keeping a graph of transformations on the
         // archetypes, and storing the backend difference along the edges.
         // Basically, the edge would cache this information.
-        /// \brief Return all QueryBackends that are present i aCompared, but not in aReference.
+        /// \brief Return all QueryBackends that are present in aCompared, but not in aReference.
         std::vector<detail::QueryBackendBase *>
         getExtraQueryBackends(const Archetype & aCompared, const Archetype & aReference) const;
 
@@ -133,10 +133,6 @@ private:
     detail::QueryBackend<VT_components...> * queryBackend(TypeSequence aQueryType)
     { return mState->queryBackend<VT_components...>(aQueryType); }
 
-    //// TODO This could be massively optimized by keeping a graph of transformations on the
-    //// archetypes, and storing the backend difference along the edges.
-    //// Basically, the edge would cache this information.
-    ///// \brief Return all QueryBackends that are present i aCompared, but not in aReference.
     std::vector<detail::QueryBackendBase *>
     getExtraQueryBackends(const Archetype & aCompared, const Archetype & aReference) const
     { return mState->getExtraQueryBackends(aCompared, aReference); }
