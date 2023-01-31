@@ -138,6 +138,10 @@ class Handle<Entity>
     friend class Entity;
     friend class EntityManager;
     template <class...> friend class Query; // Instantiates Handle on iteration.
+
+    template <class>
+    friend class Wrap;
+
     // TODO remove
     template <class...>
     friend class detail::QueryBackend;

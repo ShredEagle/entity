@@ -9,13 +9,15 @@ set(${TARGET_NAME}_HEADERS
 )
 
 set(${TARGET_NAME}_SOURCES
+    main.cpp
+
     Phase_tests.cpp
     Query_tests.cpp
     QueryIteration_tests.cpp
     QueryEvent_tests.cpp
     StateBackup_tests.cpp
     Usage_tests.cpp
-    main.cpp
+    Wrap_tests.cpp
 )
 
 add_executable(${TARGET_NAME}

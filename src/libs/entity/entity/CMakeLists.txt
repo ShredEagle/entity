@@ -9,6 +9,7 @@ set(${TARGET_NAME}_HEADERS
     HandleKey.h
     Query.h
     QueryStore.h
+    Wrap.h
 
     detail/CloningPointer.h
     detail/HandledStore.h
