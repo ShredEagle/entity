@@ -84,22 +84,44 @@ private:
 };
 
 
-class Entity
+/// @brief Mutating view of an entity.
+///
+/// The view gives mutating access to the entity components,
+/// but it prevents removal of the entity / edition of the component list.
+/// In other words, it only allows for immediate operations.
+class Entity_view
 {
-    friend class Handle<Entity>;
-
 public:
-    template <class T_component>
-    Entity & add(T_component aComponent);
-
-    template <class T_component>
-    Entity & remove();
+    Entity_view(EntityReference aReference) :
+        mReference{aReference}
+    {}
 
     template <class T_component>
     bool has();
 
     template <class T_component>
     T_component & get();
+
+private:
+    EntityReference mReference;
+};
+
+
+/// \brief The logic Entity, defining all available operations.
+/// \note There is not persistent memory representation of an entity, it is 
+/// only logically defined by the amalgamation of its different components.
+class Entity : public Entity_view
+{
+    friend class Handle<Entity>;
+
+public:
+    /// \brief Add component T_component to the entity.
+    template <class T_component>
+    Entity & add(T_component aComponent);
+
+    /// \brief Remove component T_component from the entity.
+    template <class T_component>
+    Entity & remove();
 
     /// \brief Remove the entity itself from the EntityManager.
     void erase();
@@ -109,13 +131,10 @@ private:
         EntityReference aReference,
         Handle<Entity> & aHandle,
         Phase & aPhase) :
-        mReference{aReference},
+        Entity_view{aReference},
         mHandle{aHandle},
         mPhase{aPhase}
     {}
-
-    // For immediate operations
-    EntityReference mReference;
 
     // For  deferred operations
     Handle<Entity> & mHandle;
@@ -151,7 +170,9 @@ public:
     // TODO not sure it should exist as a standalone, as it duplicates some logic from get()
     bool isValid() const;
 
-    /// \important This handle must outlive the returned Entity.
+    std::optional<Entity_view> get();
+
+    /// \warning This handle must outlive the returned Entity.
     std::optional<Entity> get(Phase & aPhase);
 
     friend bool operator==(const Handle & aLhs, const Handle & aRhs)
@@ -238,14 +259,14 @@ Entity & Entity::remove()
 
 
 template <class T_component>
-bool Entity::has()
+bool Entity_view::has()
 {
     return mReference.mArchetype->has<T_component>();
 }
 
 
 template <class T_component>
-T_component & Entity::get()
+T_component & Entity_view::get()
 {
     return mReference.mArchetype->get<T_component>(mReference.mIndex);
 }
