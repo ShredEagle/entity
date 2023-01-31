@@ -237,10 +237,11 @@ namespace detail
 
 } // namespace detail
 
+
 template <class T_data>
 Storage<T_data> & StorageBase::as()
 {
-    // TODO Should we assert here?
+    assert(getId<T_data>() == this->getType());
     return *reinterpret_cast<Storage<T_data> *>(this);
 }
 

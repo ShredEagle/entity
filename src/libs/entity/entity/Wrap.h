@@ -7,6 +7,12 @@ namespace ad {
 namespace ent {
 
 
+// Implementation note:
+// Initially, we limited instantiation to T_stored that were Wrappable.
+// A T_stored satisfying the Wrappable requirement could not be part of a Query var args.
+/// This way, it would prevent invalidating the Wrap<> from an external query.
+// Yet, for the moment this was reverted by commit #d3f5a3e (It is considered unlikely to happen).
+
 /// @brief Wraps an instance of T_stored as a component of a dedicated (hidden) entity.
 ///
 /// This allows to store arbitrary types' instances into the entity manager, thus providing
@@ -55,10 +61,13 @@ public:
 private:
     T_stored & get() const
     {
+        const EntityRecord & record = mWrapped.record();
+        assert(record.mIndex != gInvalidIndex); // since we reverted the exclusivitiy between Query and Wrap
+
         // Wrap stores a single component on the entity, so the storage index is 0.
         Storage<T_stored> & storage = mWrapped.archetype().getStorage(StorageIndex<T_stored>{0});
         // We do not check the index validity, no other code should be able to remove the entity.
-        return storage[mWrapped.record().mIndex];
+        return storage[record.mIndex];
     }
 
 

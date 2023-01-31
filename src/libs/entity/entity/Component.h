@@ -20,7 +20,7 @@ using ComponentId = std::type_index;
 
 
 template <class T_component>
-inline ComponentId getId()
+constexpr ComponentId getId()
 {
     return std::type_index(typeid(T_component));
 }
