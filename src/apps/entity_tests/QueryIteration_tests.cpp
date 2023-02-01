@@ -1,10 +1,22 @@
-#include "catch.hpp"
 
 #include "Components_helpers.h"
 
 #include <entity/Entity.h>
 #include <entity/EntityManager.h>
 #include <entity/Query.h>
+
+#include <format>
+#include <iostream>
+
+
+// Should appear before catch inclusion.
+std::ostream & operator<<(std::ostream & aOut, const std::pair<ad::ent::EntityIndex, ad::ent::EntityIndex> & aValue)
+{
+    return aOut << "{" << aValue.first << ", " << aValue.second << "}";
+}
+
+
+#include "catch.hpp"
 
 
 using namespace ad;
@@ -146,14 +158,16 @@ SCENARIO("Pair simple iteration.")
                 {
                     std::size_t pairCounter{0};
                     std::set<std::pair<double, double>> expectedPairs{
-                        {10., 100},
-                        {10., 1000},
-                        {100., 1000},
+                        { 10.,  100.},
+                        { 10., 1000.},
+                        {100., 1000.},
                     };
                     queryA.eachPair([&](ComponentA & aLeft, ComponentA & aRight)
                             {
                                 ++pairCounter;
-                                expectedPairs.erase({aLeft.d, aRight.d});
+                                std::pair<double, double> inPair{aLeft.d, aRight.d};
+                                INFO(std::format("Received pair: {}, {}", inPair.first, inPair.second));
+                                CHECK(expectedPairs.erase(inPair) == 1);
                             });
 
                     THEN("The callback is called on each pair.")
@@ -382,7 +396,9 @@ SCENARIO("Query pair iteration with handles and subset of components.")
                                 auto & [leftA] = aLeft;  
                                 auto & [rightA] = aRight;  
                                 ++pairCounter;
-                                expectedPairs.erase({leftA.d, rightA.d});
+                                std::pair<double, double> inPair{leftA.d, rightA.d};
+                                INFO(std::format("Received pair: {}, {}", inPair.first, inPair.second));
+                                CHECK(expectedPairs.erase(inPair) == 1);
                             });
 
                     THEN("The callback is called on each pair.")
