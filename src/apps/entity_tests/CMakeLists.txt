@@ -11,6 +11,7 @@ set(${TARGET_NAME}_HEADERS
 set(${TARGET_NAME}_SOURCES
     main.cpp
 
+    HandleEntity_tests.cpp
     Phase_tests.cpp
     Query_tests.cpp
     QueryIteration_tests.cpp

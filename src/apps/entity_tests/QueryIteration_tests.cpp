@@ -1,10 +1,21 @@
-#include "catch.hpp"
 
 #include "Components_helpers.h"
 
 #include <entity/Entity.h>
 #include <entity/EntityManager.h>
 #include <entity/Query.h>
+
+#include <iostream>
+
+
+// Should appear before catch inclusion.
+std::ostream & operator<<(std::ostream & aOut, const std::pair<ad::ent::EntityIndex, ad::ent::EntityIndex> & aValue)
+{
+    return aOut << "{" << aValue.first << ", " << aValue.second << "}";
+}
+
+
+#include "catch.hpp"
 
 
 using namespace ad;
@@ -146,14 +157,17 @@ SCENARIO("Pair simple iteration.")
                 {
                     std::size_t pairCounter{0};
                     std::set<std::pair<double, double>> expectedPairs{
-                        {10., 100},
-                        {10., 1000},
-                        {100., 1000},
+                        { 10.,  100.},
+                        { 10., 1000.},
+                        {100., 1000.},
                     };
                     queryA.eachPair([&](ComponentA & aLeft, ComponentA & aRight)
                             {
                                 ++pairCounter;
-                                expectedPairs.erase({aLeft.d, aRight.d});
+                                // Sorted because the order of Archetypes in a Query is implementation dependent.
+                                // (see warning on `Query`)
+                                std::pair<double, double> inPair{std::min(aLeft.d, aRight.d), std::max(aLeft.d, aRight.d)};
+                                CHECK(expectedPairs.erase(inPair) == 1);
                             });
 
                     THEN("The callback is called on each pair.")
@@ -382,7 +396,10 @@ SCENARIO("Query pair iteration with handles and subset of components.")
                                 auto & [leftA] = aLeft;  
                                 auto & [rightA] = aRight;  
                                 ++pairCounter;
-                                expectedPairs.erase({leftA.d, rightA.d});
+                                // Sorted because the order of Archetypes in a Query is implementation dependent.
+                                // (see warning on `Query`)
+                                std::pair<double, double> inPair{std::min(leftA.d, rightA.d), std::max(leftA.d, rightA.d)};
+                                CHECK(expectedPairs.erase(inPair) == 1);
                             });
 
                     THEN("The callback is called on each pair.")
@@ -407,7 +424,10 @@ SCENARIO("Query pair iteration with handles and subset of components.")
                                          Handle<Entity> aRightHandle, std::tuple<ComponentB &> b)
                             {
                                 ++pairCounter;
-                                visitedPairs.insert({aLeftHandle.id(), aRightHandle.id()});
+                                // Sorted because the order of Archetypes in a Query is implementation dependent.
+                                // (see warning on `Query`)
+                                std::pair<EntityIndex, EntityIndex> inPair{std::min(aLeftHandle.id(), aRightHandle.id()), std::max(aLeftHandle.id(), aRightHandle.id())};
+                                visitedPairs.insert(inPair);
 
                                 // Checks that the handle corresponds to the provided components.
                                 CHECK(aLeftHandle.get(dummy)->get<ComponentA>().d == std::get<0>(a).d);

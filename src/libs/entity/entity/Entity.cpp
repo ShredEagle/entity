@@ -39,6 +39,27 @@ bool Handle<Entity>::isValid() const
 }
 
 
+std::optional<Entity_view> Handle<Entity>::get()
+{
+    EntityRecord current = record();
+
+    // TODO Potential optimisation: is it wise to to the check here?
+    // Knowing that the client has to check.
+    // record() already return a nullptr archetype for invalid entities,
+    // which could directly be checked by the client.
+    if(current.mIndex != gInvalidIndex)
+    {
+        return Entity_view{
+            reference(),
+        };
+    }
+    else
+    {
+        return std::nullopt;
+    }
+}
+
+
 std::optional<Entity> Handle<Entity>::get(Phase & aPhase)
 {
     EntityRecord current = record();
@@ -82,6 +103,7 @@ Archetype & Handle<Entity>::archetype() const
 {
     return mManager->archetype(record().mArchetype);
 }
+
 
 EntityReference Handle<Entity>::reference() const
 {

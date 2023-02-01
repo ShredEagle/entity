@@ -85,6 +85,10 @@ private:
 // There should be only one instance (for a given VT_components...) per EntityManager.
 // This allows to cache queries (all identicaly queries share the single backend instance),
 // and the EntityManager is responsible for keeping the backends up to date.
+
+/// \warning The order of MatchedArchetypes in the QueryBackend is implementation dependent:
+/// When the QueryBackend is instantiated, it goes through the map of existing archetypes in the ArchetypeStore.
+/// This map is sorted by TypeSet, whose order is implemenation dependent (it depends on type_id).
 template <class... VT_components>
 class QueryBackend : public QueryBackendBase
 {
