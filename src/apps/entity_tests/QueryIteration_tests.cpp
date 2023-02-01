@@ -5,8 +5,8 @@
 #include <entity/EntityManager.h>
 #include <entity/Query.h>
 
-#include <format>
 #include <iostream>
+#include <sstream>
 
 
 // Should appear before catch inclusion.
@@ -166,7 +166,9 @@ SCENARIO("Pair simple iteration.")
                             {
                                 ++pairCounter;
                                 std::pair<double, double> inPair{aLeft.d, aRight.d};
-                                INFO(std::format("Received pair: {}, {}", inPair.first, inPair.second));
+                                std::ostringstream oss;
+                                oss << "Received pair: " << inPair.first << ", " << inPair.second;
+                                INFO(oss.str());
                                 CHECK(expectedPairs.erase(inPair) == 1);
                             });
 
@@ -397,7 +399,9 @@ SCENARIO("Query pair iteration with handles and subset of components.")
                                 auto & [rightA] = aRight;  
                                 ++pairCounter;
                                 std::pair<double, double> inPair{leftA.d, rightA.d};
-                                INFO(std::format("Received pair: {}, {}", inPair.first, inPair.second));
+                                std::ostringstream oss;
+                                oss << "Received pair: " << inPair.first << ", " << inPair.second;
+                                INFO(oss.str());
                                 CHECK(expectedPairs.erase(inPair) == 1);
                             });
 
