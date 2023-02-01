@@ -6,7 +6,6 @@
 #include <entity/Query.h>
 
 #include <iostream>
-#include <sstream>
 
 
 // Should appear before catch inclusion.
@@ -165,10 +164,9 @@ SCENARIO("Pair simple iteration.")
                     queryA.eachPair([&](ComponentA & aLeft, ComponentA & aRight)
                             {
                                 ++pairCounter;
-                                std::pair<double, double> inPair{aLeft.d, aRight.d};
-                                std::ostringstream oss;
-                                oss << "Received pair: " << inPair.first << ", " << inPair.second;
-                                INFO(oss.str());
+                                // Sorted because the order of Archetypes in a Query is implementation dependent.
+                                // (see warning on `Query`)
+                                std::pair<double, double> inPair{std::min(aLeft.d, aRight.d), std::max(aLeft.d, aRight.d)};
                                 CHECK(expectedPairs.erase(inPair) == 1);
                             });
 
@@ -398,10 +396,9 @@ SCENARIO("Query pair iteration with handles and subset of components.")
                                 auto & [leftA] = aLeft;  
                                 auto & [rightA] = aRight;  
                                 ++pairCounter;
-                                std::pair<double, double> inPair{leftA.d, rightA.d};
-                                std::ostringstream oss;
-                                oss << "Received pair: " << inPair.first << ", " << inPair.second;
-                                INFO(oss.str());
+                                // Sorted because the order of Archetypes in a Query is implementation dependent.
+                                // (see warning on `Query`)
+                                std::pair<double, double> inPair{std::min(leftA.d, rightA.d), std::max(leftA.d, rightA.d)};
                                 CHECK(expectedPairs.erase(inPair) == 1);
                             });
 
@@ -427,7 +424,10 @@ SCENARIO("Query pair iteration with handles and subset of components.")
                                          Handle<Entity> aRightHandle, std::tuple<ComponentB &> b)
                             {
                                 ++pairCounter;
-                                visitedPairs.insert({aLeftHandle.id(), aRightHandle.id()});
+                                // Sorted because the order of Archetypes in a Query is implementation dependent.
+                                // (see warning on `Query`)
+                                std::pair<EntityIndex, EntityIndex> inPair{std::min(aLeftHandle.id(), aRightHandle.id()), std::max(aLeftHandle.id(), aRightHandle.id())};
+                                visitedPairs.insert(inPair);
 
                                 // Checks that the handle corresponds to the provided components.
                                 CHECK(aLeftHandle.get(dummy)->get<ComponentA>().d == std::get<0>(a).d);
