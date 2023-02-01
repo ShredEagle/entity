@@ -77,6 +77,21 @@ EntityManager::InternalState::getExtraQueryBackends(const Archetype & aCompared,
 }
 
 
+HandleKey<Entity> EntityManager::InternalState::getAvailableHandle()
+{
+    if (mFreedHandles.empty())
+    {
+        return mNextHandle++;
+    }
+    else
+    {
+        HandleKey<Entity> handle = mFreedHandles.front();
+        mFreedHandles.pop_front();
+        return handle;
+    }
+}
+
+
 State EntityManager::saveState()
 {
     // move the currently active InternalState to the backup State.

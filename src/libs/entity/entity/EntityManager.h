@@ -74,6 +74,9 @@ class EntityManager
         HandleKey<Archetype> makeArchetypeIfAbsent(const TypeSet & aTargetTypeSet,
                                            F_maker && aMakeCallback);
 
+        /// \brief Get an available handle. Prefers returning from the free list if not empty.
+        HandleKey<Entity> getAvailableHandle();
+
         // TODO Refactor the Handle<Entity> related members into a coherent separate class.
         HandleKey<Entity> mNextHandle;
         std::map<HandleKey<Entity>, EntityRecord> mHandleMap;
@@ -255,14 +258,14 @@ inline Handle<Entity> EntityManager::InternalState::addEntity(EntityManager & aM
     // We know the empty archetype is first in the vector
     std::pair<Archetype &, HandleKey<Archetype>> empty =  mArchetypes.getEmptyArchetype();
 
+    HandleKey<Entity> key = getAvailableHandle();
     mHandleMap.insert_or_assign(
-        mNextHandle,
+        key,
         EntityRecord{
             empty.second,
             empty.first.countEntities(),
         });
 
-    HandleKey<Entity> key = mNextHandle++;
     // Has to be done after taking the entity count as index, for the new EntityRecord.
     empty.first.pushKey(key);
 
