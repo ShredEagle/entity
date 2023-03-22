@@ -177,7 +177,7 @@ public:
 
     friend bool operator==(const Handle & aLhs, const Handle & aRhs)
     {
-        assert (&aLhs.mManager == &aRhs.mManager);
+        assert (aLhs.mManager == aRhs.mManager);
         return aLhs.mKey == aRhs.mKey;
     }
 
