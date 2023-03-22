@@ -276,7 +276,7 @@ SCENARIO("Several backups can be taken and destroyed.")
         {
             using QueryA = Query<ComponentA>;
             QueryA qA{world};
-            qA.onAddEntity([](auto){});
+            qA.onAddEntity([](Handle<Entity>, auto){});
 
             Handle<Entity> hq = world.addEntity();
             {
@@ -323,7 +323,7 @@ SCENARIO("A restored state listens to new archetypes.")
             int addCounter{0};
             {
                 Phase phase;
-                hq.get(phase)->get<QueryA>().onAddEntity([&addCounter](auto)
+                hq.get(phase)->get<QueryA>().onAddEntity([&addCounter](Handle<Entity>, auto)
                         {
                             ++addCounter;
                         });
@@ -381,7 +381,7 @@ SCENARIO("Destroying backups does not stop active listenings.")
             int addCounter{0};
             {
                 Phase phase;
-                hq.get(phase)->get<QueryA>().onAddEntity([&addCounter](auto)
+                hq.get(phase)->get<QueryA>().onAddEntity([&addCounter](Handle<Entity>, auto)
                         {
                             ++addCounter;
                         });
@@ -432,7 +432,7 @@ SCENARIO("Queries can listen and stop listening on different states.")
             int addCounter{0};
             {
                 Phase phase;
-                hq.get(phase)->get<QueryA>().onAddEntity([&addCounter](auto)
+                hq.get(phase)->get<QueryA>().onAddEntity([&addCounter](Handle<Entity>, auto)
                         {
                             ++addCounter;
                         });
