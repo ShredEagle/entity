@@ -1,0 +1,6 @@
+editables:
+    entity/local:
+        path: ../../conan
+layout: linux_layout
+workspace_generator: cmake
+root: entity/local
