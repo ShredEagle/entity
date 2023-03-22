@@ -65,6 +65,21 @@ SCENARIO("Handles provide a phase-less view access to Entities.")
     }
 }
 
+SCENARIO("Handles are comparable")
+{
+    GIVEN("An entity Manager with two handle on the same entity")
+    {
+        EntityManager world;
+        Handle<Entity> h1 = world.addEntity();
+        Handle<Entity> h2 = h1;
+
+        THEN("The handles are comparable")
+        {
+            CHECK(h1 == h2);
+        }
+    }
+}
+
 
 SCENARIO("Handles allow to test the validity of the underlying Entity.")
 {
