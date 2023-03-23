@@ -120,12 +120,12 @@ SCENARIO("Queries are notified of entities removed.")
                     h1.get(phase)->add<ComponentA>({valA});
                 }
 
-                THEN("The remove entity listener was not invoked.")
+                THEN("The removed entity listener was not invoked.")
                 {
                     CHECK(removeCount == 0);
                 }
 
-                WHEN("The entity is remove from the manager")
+                WHEN("The entity is removed from the manager")
                 {
                     {
                         Phase phase;
