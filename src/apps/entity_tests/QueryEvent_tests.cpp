@@ -24,10 +24,11 @@ SCENARIO("Queries are notified of entities added.")
 
             Query<ComponentA> queryA{world};
             std::size_t addCount = 0;
-            queryA.onAddEntity([&](ComponentA & a)
+            queryA.onAddEntity([&](Handle<Entity> h, ComponentA & a)
                     {
                         ++addCount;
                         CHECK(a.d == valA);
+                        CHECK(h == h1);
                     });
 
             REQUIRE(addCount == 0);
@@ -102,12 +103,13 @@ SCENARIO("Queries are notified of entities removed.")
 
             Query<ComponentA> queryA{world};
             std::size_t removeCount = 0;
-            queryA.onRemoveEntity([&](ComponentA & a)
+            queryA.onRemoveEntity([&](Handle<Entity> h, ComponentA & a)
                     {
                         ++removeCount;
                         THEN("The component has its value before removal.")
                         {
                             CHECK(a.d == valA);
+                            CHECK(h == h1);
                         }
                     });
 
@@ -208,7 +210,7 @@ SCENARIO("The events are only listened as long as the query is alive.")
         {
             auto queryA = std::make_unique<Query<ComponentA>>(world);
             std::size_t addCount = 0;
-            queryA->onAddEntity([&](ComponentA &)
+            queryA->onAddEntity([&](Handle<Entity> h, ComponentA &)
             {
                 ++addCount;
             });
@@ -247,7 +249,7 @@ SCENARIO("The events are only listened as long as the query is alive.")
         {
             auto queryA = std::make_unique<Query<ComponentA>>(world);
             std::size_t removeCount = 0;
-            queryA->onRemoveEntity([&](ComponentA &)
+            queryA->onRemoveEntity([&](Handle<Entity> h, ComponentA &)
             {
                 ++removeCount;
             });
@@ -299,12 +301,12 @@ SCENARIO("Events are triggered for queries matching several components.")
             auto queryAB = std::make_unique<Query<ComponentA, ComponentB>>(world);
             std::size_t addCount = 0;
             std::size_t removeCount = 0;
-            queryAB->onAddEntity([&](ComponentA &, ComponentB &)
+            queryAB->onAddEntity([&](Handle<Entity> h, ComponentA &, ComponentB &)
             {
                 ++addCount;
             });
 
-            queryAB->onRemoveEntity([&](ComponentA &, ComponentB &)
+            queryAB->onRemoveEntity([&](Handle<Entity> h, ComponentA &, ComponentB &)
             {
                 ++removeCount;
             });
@@ -392,7 +394,7 @@ SCENARIO("Existing entities matching a query are signaled when registering a lis
             {
                 std::size_t addCount = 0;
 
-                queryAB.onAddEntity([&](ComponentA & a, ComponentB & b)
+                queryAB.onAddEntity([&](Handle<Entity> h, ComponentA & a, ComponentB & b)
                 {
                     ++addCount;
                     THEN("The values of the components are as set.")

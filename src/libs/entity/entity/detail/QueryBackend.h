@@ -106,8 +106,8 @@ public:
         std::tuple<StorageIndex<VT_components>...> mComponentIndices;
     };
 
-    using AddedEntityCallback = std::function<void(VT_components &...)>;
-    using RemovedEntityCallback = std::function<void(VT_components &...)>;
+    using AddedEntityCallback = std::function<void(Handle<Entity>, VT_components &...)>;
+    using RemovedEntityCallback = std::function<void(Handle<Entity>, VT_components &...)>;
 
     QueryBackend(const ArchetypeStore & aArchetypes);
 
@@ -261,7 +261,10 @@ void QueryBackend<VT_components...>::signal_impl(
         for(auto & [_handle, callback] : aListeners)
         {
             // It is currently hardcoded that the signals' callback are taking all components, in order.
-            Invoker<std::tuple<VT_components...>>::template invoke<VT_components...>(callback, storages, aRecord.mIndex);
+            // (franz): Added Handle 
+            Invoker<std::tuple<Handle<Entity>, VT_components...>>::template invoke<VT_components...>(
+                    callback,
+                    aEntity, storages, aRecord.mIndex);
         }
     }
 }
