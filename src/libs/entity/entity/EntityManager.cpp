@@ -44,6 +44,23 @@ void EntityManager::InternalState::freeHandle(HandleKey<Entity> aKey)
     mFreedHandles.push_back(std::move(aKey));
 }
 
+std::set<detail::QueryBackendBase *>
+EntityManager::InternalState::getQueryBackendSet(const Archetype & aArchetype) const
+{
+    std::set<detail::QueryBackendBase *> result;
+    TypeSet archetypeTypeSet = aArchetype.getTypeSet();
+    for(const auto & [typeSequence, backend] : mQueryBackends)
+    {
+        TypeSet queryTypeSet{typeSequence.begin(), typeSequence.end()};
+        if(std::includes(archetypeTypeSet.begin(), archetypeTypeSet.end(),
+                         queryTypeSet.begin(), queryTypeSet.end()))
+        {
+            result.insert(backend.get());
+        }
+    }
+    return result;
+}
+
 
 std::vector<detail::QueryBackendBase *>
 EntityManager::InternalState::getExtraQueryBackends(const Archetype & aCompared,
@@ -51,24 +68,8 @@ EntityManager::InternalState::getExtraQueryBackends(const Archetype & aCompared,
 {
     using QueryBackendSet = std::set<detail::QueryBackendBase *>;
 
-    auto getQueries = [&](const Archetype & aArchetype)
-    {
-        QueryBackendSet result;
-        TypeSet archetypeTypeSet = aArchetype.getTypeSet();
-        for(const auto & [typeSequence, backend] : mQueryBackends)
-        {
-            TypeSet queryTypeSet{typeSequence.begin(), typeSequence.end()};
-            if(std::includes(archetypeTypeSet.begin(), archetypeTypeSet.end(),
-                             queryTypeSet.begin(), queryTypeSet.end()))
-            {
-                result.insert(backend.get());
-            }
-        }
-        return result;
-    };
-
-    QueryBackendSet initialQueries = getQueries(aReference);
-    QueryBackendSet targetQueries = getQueries(aCompared);
+    QueryBackendSet initialQueries = getQueryBackendSet(aReference);
+    QueryBackendSet targetQueries = getQueryBackendSet(aCompared);
     std::vector<detail::QueryBackendBase *> difference;
     std::set_difference(targetQueries.begin(), targetQueries.end(),
                         initialQueries.begin(), initialQueries.end(),

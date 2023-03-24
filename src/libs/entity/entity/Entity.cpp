@@ -86,7 +86,15 @@ std::optional<Entity> Handle<Entity>::get(Phase & aPhase)
 void Handle<Entity>::erase()
 {
     EntityRecord rec = record();
-    archetype().remove(rec.mIndex, *mManager);
+    Archetype & arch = archetype();
+    auto querySet = mManager->getQueryBackendSet(arch);
+
+    for (const auto & query : querySet)
+    {
+        query->signalEntityRemoved(*this, rec);
+    }
+
+    arch.remove(rec.mIndex, *mManager);
 
     mManager->freeHandle(mKey);
 }

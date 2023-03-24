@@ -62,6 +62,8 @@ class EntityManager
         template <class... VT_components>
         detail::QueryBackend<VT_components...> * queryBackend(TypeSequence aQueryType);
 
+        std::set<detail::QueryBackendBase *> getQueryBackendSet(const Archetype & aArchetype) const;
+
         // TODO This could be massively optimized by keeping a graph of transformations on the
         // archetypes, and storing the backend difference along the edges.
         // Basically, the edge would cache this information.
@@ -135,6 +137,9 @@ private:
     template <class... VT_components>
     detail::QueryBackend<VT_components...> * queryBackend(TypeSequence aQueryType)
     { return mState->queryBackend<VT_components...>(aQueryType); }
+
+    std::set<detail::QueryBackendBase *> getQueryBackendSet(const Archetype & aArchetype) const
+    { return mState->getQueryBackendSet(aArchetype); }
 
     std::vector<detail::QueryBackendBase *>
     getExtraQueryBackends(const Archetype & aCompared, const Archetype & aReference) const
