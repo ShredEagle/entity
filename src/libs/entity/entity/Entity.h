@@ -170,7 +170,7 @@ public:
     // TODO not sure it should exist as a standalone, as it duplicates some logic from get()
     bool isValid() const;
 
-    std::optional<Entity_view> get();
+    std::optional<Entity_view> get() const;
 
     /// \warning This handle must outlive the returned Entity.
     std::optional<Entity> get(Phase & aPhase);

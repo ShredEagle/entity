@@ -39,7 +39,7 @@ bool Handle<Entity>::isValid() const
 }
 
 
-std::optional<Entity_view> Handle<Entity>::get()
+std::optional<Entity_view> Handle<Entity>::get() const
 {
     EntityRecord current = record();
 
