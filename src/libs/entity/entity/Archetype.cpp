@@ -53,6 +53,17 @@ bool Archetype::checkStoreSize() const
     return result;
 }
 
+void Archetype::verifyHandles(EntityManager & aManager)
+{
+    for (auto handleKey : mHandles)
+    {
+        Handle<Entity> handle{handleKey, aManager};
+
+        assert(&handle.archetype() == this);
+    }
+
+}
+
 bool Archetype::verifyConsistency()
 {
     if(mType.size() != mStores.size())

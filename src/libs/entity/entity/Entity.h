@@ -157,6 +157,7 @@ class Handle<Entity>
     friend class Entity;
     friend class EntityManager;
     template <class...> friend class Query; // Instantiates Handle on iteration.
+    friend class Archetype; // So that Archetype can check handle integrity
 
     template <class>
     friend class Wrap;

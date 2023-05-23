@@ -172,6 +172,9 @@ public:
     void remove(EntityIndex aEntityIndex, EntityManager & aManager);
 
     // Intended for tests
+    void verifyHandles(EntityManager & aManager);
+
+    // Intended for tests
     bool verifyConsistency();
 
     // TODO should probably not be public
