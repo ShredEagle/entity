@@ -161,8 +161,6 @@ public:
 
     std::size_t countEntities() const;
 
-    bool checkStoreSize() const;
-
     template <class T_component>
     bool has() const;
 
@@ -171,11 +169,12 @@ public:
 
     void remove(EntityIndex aEntityIndex, EntityManager & aManager);
 
-    // Intended for tests
-    void verifyHandles(EntityManager & aManager);
+    /// \brief Intended for tests, makes sure that each handle in this Archetype
+    /// corresponds to an Entity whose archetype is this instance.
+    bool verifyHandlesConsistency(EntityManager & aManager);
 
     // Intended for tests
-    bool verifyConsistency();
+    bool verifyStoresConsistency();
 
     // TODO should probably not be public
     /// \brief Move an entity from this Archetype to aDestination Archetype.
@@ -199,10 +198,13 @@ public:
     Storage<T_component> & getStorage(StorageIndex<T_component> aComponentIndex);
 
     /// \attention implementation detail, intended for use by Query iteration.
-    const std::vector<HandleKey<Entity>> getEntityIndices() const
+    const std::vector<HandleKey<Entity>> & getEntityIndices() const
     { return mHandles; }
 
 private:
+    /// \brief Intended for tests, makes sure that each store size matche the count of handles.
+    bool checkStoreSize() const;
+
     //std::size_t mSize{0};
     // TODO cache typeset, or even better only have a typeset, so the components are ordered
     //TypeSet mTypeSet;

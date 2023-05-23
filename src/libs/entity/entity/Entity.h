@@ -50,7 +50,7 @@ private:
 struct EntityRecord
 {
     HandleKey<Archetype> mArchetype;
-    EntityIndex mIndex;
+    EntityIndex mIndex; // Index of this Entity in (each store of) the Archetype.
 };
 
 

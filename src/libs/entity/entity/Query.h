@@ -40,11 +40,11 @@ public:
     /// \brief Number of distinct entities matching the query.
     std::size_t countMatches() const;
 
-    /// \brief Check the consistency of entity ids between the record and the archetype
+    /// \brief Check the consistency of entity ids between the record and the archetype.
     void verifyEntityIds();
 
-    /// \brief Check the consistency of the handles and archetypes
-    void verifyHandles();
+    /// \brief Check the consistency of the handles and archetypes.
+    void verifyArchetypes();
 
     /// \brief Iteration over all entities matching the query.
     template <class F_function>
@@ -152,43 +152,15 @@ std::size_t Query<VT_components...>::countMatches() const
                            });
 }
 
-template<class... VT_components>
-void Query<VT_components...>::verifyHandles()
-{
-    for(const auto & match : matches())
-    {
-        // Checks that the handle archetype is the same 
-        // as the archetype that back link to the handle
-        // This is important because archetypes contain a list of
-        // EntityKey that might be wrong
-        auto & archetype = getArchetype(match);
-        archetype.verifyConsistency();
-        archetype.verifyHandles(*mManager);
-
-        // Checks that the typeset of the query is 
-        // contained in the typeset of the archetype matched 
-        auto setQueryComponents = getTypeSet<VT_components...>();
-        for (auto componentId : setQueryComponents)
-        {
-            assert(std::find(archetype.getTypeSet().begin(),
-                             archetype.getTypeSet().end(),
-                             componentId) != archetype.getTypeSet().end()
-                  );
-            assert(archetype.getTypeSet().contains(
-                             componentId)
-                  );
-        }
-    }
-}
 
 template<class... VT_components>
 void Query<VT_components...>::verifyEntityIds()
 {
     for(const auto & match : matches())
     {
-        const std::vector<HandleKey<Entity>> & handleKeys = getArchetype(match).getEntityIndices();
-        std::size_t size = getArchetype(match).countEntities();
-        for(std::size_t entityId = 0; entityId != size; ++entityId)
+        auto & archetype = getArchetype(match);
+        const std::vector<HandleKey<Entity>> & handleKeys = archetype.getEntityIndices();
+        for(std::size_t entityId = 0; entityId != handleKeys.size(); ++entityId)
         {
             // Checks that the index of the EntityRecord is the same that the index of the Entity in the archetype
             // This should not happen and means that entities are scrambled in the Archetype
@@ -198,14 +170,39 @@ void Query<VT_components...>::verifyEntityIds()
     }
 }
 
+
+template<class... VT_components>
+void Query<VT_components...>::verifyArchetypes()
+{
+    const auto queryTypeSet = getTypeSet<VT_components...>();
+    for(const auto & match : matches())
+    {
+        auto & archetype = getArchetype(match);
+        assert(archetype.verifyConsistency());
+        // Checks that the handle archetype is the same 
+        // as the archetype that back link to the handle
+        // This is important because archetypes contain a list of
+        // EntityKey that might be wrong
+        assert(archetype.verifyHandles(*mManager));
+
+        // Checks that the archetype of this match
+        // contains storage for each component type in this Query.
+        for (auto componentId : queryTypeSet)
+        {
+            assert(archetype.getTypeSet().contains(componentId));
+        }
+    }
+}
+
+
 // TODO replace F_function with T_function
 //
 template <class... VT_components>
 template <class F_function>
 void Query<VT_components...>::each(F_function && aCallback)
 {
-#if defined(ENTITY_DEBUG)
-    verifyHandles();
+#if defined(ENTITY_SANITIZE)
+    verifyArchetypes();
     verifyEntityIds();
 #endif
     for(const auto & match : matches())

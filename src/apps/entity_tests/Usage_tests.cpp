@@ -410,7 +410,7 @@ SCENARIO("Components duplication.")
                     Archetype & archetype =
                         Inspector<EntityManager>::getArchetypeHandle<ComponentA>(world).get();
                     CHECK(archetype.countEntities() == 1);
-                    CHECK(archetype.verifyConsistency());
+                    CHECK(archetype.verifyStoresConsistency());
                 }
 
                 THEN("The last value is stored in the component.")
@@ -441,7 +441,7 @@ SCENARIO("Components duplication.")
                         Archetype & archetype =
                             Inspector<EntityManager>::getArchetypeHandle<ComponentA>(world).get();
                         CHECK(archetype.countEntities() == 1);
-                        CHECK(archetype.verifyConsistency());
+                        CHECK(archetype.verifyStoresConsistency());
                     }
 
                     THEN("The last value is stored in the component.")
@@ -509,7 +509,7 @@ SCENARIO("Components multiple delete.")
                     Archetype & archetype =
                         Inspector<EntityManager>::getArchetypeHandle<ComponentA>(world).get();
                     CHECK(archetype.countEntities() == 1);
-                    CHECK(archetype.verifyConsistency());
+                    CHECK(archetype.verifyStoresConsistency());
                 }
 
                 THEN("The value is stored in the component.")
@@ -552,7 +552,7 @@ SCENARIO("Components multiple delete.")
                         Archetype & archetype =
                             Inspector<EntityManager>::getArchetypeHandle<ComponentA>(world).get();
                         CHECK(archetype.countEntities() == 0);
-                        CHECK(archetype.verifyConsistency());
+                        CHECK(archetype.verifyStoresConsistency());
                     }
                 }
             }
@@ -579,7 +579,7 @@ SCENARIO("Components multiple delete.")
                         Archetype & archetype =
                             Inspector<EntityManager>::getArchetypeHandle<ComponentA>(world).get();
                         CHECK(archetype.countEntities() == 0);
-                        CHECK(archetype.verifyConsistency());
+                        CHECK(archetype.verifyStoresConsistency());
                     }
                 }
             }

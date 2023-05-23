@@ -35,12 +35,13 @@ std::size_t Archetype::countEntities() const
 {
     auto result = mHandles.size();
 
-    // TODO implement level of assertion / way to disable.
-    // All stores **have to** be of the same size.
+#if defined(ENTITY_SANITIZE)
     assert(checkStoreSize());
+#endif
 
     return result;
 }
+
 
 bool Archetype::checkStoreSize() const
 {
@@ -53,41 +54,42 @@ bool Archetype::checkStoreSize() const
     return result;
 }
 
-void Archetype::verifyHandles(EntityManager & aManager)
+
+bool Archetype::verifyHandlesConsistency(EntityManager & aManager)
 {
-    for (auto handleKey : mHandles)
-    {
-        Handle<Entity> handle{handleKey, aManager};
-
-        assert(&handle.archetype() == this);
-    }
-
+    return std::all_of(
+        mHandles.begin(), mHandles.end(),
+        [&aManager, this](HandleKey<Entity> entityHandleKey) 
+        {
+            Handle<Entity> handle{entityHandleKey, aManager};
+            // True if the archetype for the entity behind handleKey is `this` instance.
+            return &handle.archetype() == this;
+        });
 }
 
-bool Archetype::verifyConsistency()
+
+bool Archetype::verifyStoresConsistency()
 {
+    // Ensure there are as much Stores for components as types in the the Archetype.
     if(mType.size() != mStores.size())
     {
         return false;
     }
 
-    std::size_t entitiesCount = countEntities();
-
-    if(entitiesCount != mHandles.size())
-    {
-        return false;
-    }
-
+    // Ensure that the type of component in each Store matche the type in mType.
     for(std::size_t storeId = 0; storeId != mType.size(); ++storeId)
     {
         if(mType[storeId] != mStores[storeId]->getType())
         {
             return false;
         }
-        else if(mStores[storeId]->size() != entitiesCount)
-        {
-            return false;
-        }
+    }
+
+    // Ensure the entities counts matches the count of handles (redundant) and the number of element in each Storage.
+    std::size_t entitiesCount = countEntities();
+    if(entitiesCount != mHandles.size() || !checkStoreSize())
+    {
+        return false;
     }
 
     return true;
