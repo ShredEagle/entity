@@ -44,7 +44,7 @@ SCENARIO("Archetype should be stable")
 
                 THEN("The archetype is valid")
                 {
-                    q.verifyEntityIds();
+                    q.verifyArchetypes();
                 }
             }
         }

@@ -57,14 +57,19 @@ bool Archetype::checkStoreSize() const
 
 bool Archetype::verifyHandlesConsistency(EntityManager & aManager)
 {
-    return std::all_of(
-        mHandles.begin(), mHandles.end(),
-        [&aManager, this](HandleKey<Entity> entityHandleKey) 
+    for(std::size_t entityIdx = 0; entityIdx != mHandles.size(); ++entityIdx)
+    {
+        Handle<Entity> handle{mHandles[entityIdx], aManager};
+        // True if index `mIndex` stored in the EntityRecord is the same as the actual index of the Entity in the archetype.
+        bool orderIsConsistent = handle.record().mIndex == entityIdx;
+        // True if the archetype for the entity behind handleKey is `this` instance.
+        bool archetypeIsConsistent = &handle.archetype() == this;
+        if (!orderIsConsistent || !archetypeIsConsistent)
         {
-            Handle<Entity> handle{entityHandleKey, aManager};
-            // True if the archetype for the entity behind handleKey is `this` instance.
-            return &handle.archetype() == this;
-        });
+            return false;
+        }
+    }
+    return true;
 }
 
 
