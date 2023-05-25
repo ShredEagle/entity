@@ -74,6 +74,8 @@ public:
     std::unique_ptr<StorageBase> clone() const override
     { return std::make_unique<Storage<T_component>>(*this); }
 
+    // Note: pushes back into mArray, but do not remove from source.
+    // Archetype::remove() will take care of that removal.
     void moveFrom(EntityIndex aSourceIndex, StorageBase & aSource) override
     { mArray.push_back(std::move(aSource.get<T_component>(aSourceIndex))); }
 
@@ -178,6 +180,7 @@ public:
 
     // TODO should probably not be public
     /// \brief Move an entity from this Archetype to aDestination Archetype.
+    /// Will only attempt to move the common components.
     /// \return The HandleKey of the entity which was moved to the index previously
     void move(EntityIndex aEntityIndex,
               Archetype & aDestination,

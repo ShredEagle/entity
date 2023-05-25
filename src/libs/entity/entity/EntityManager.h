@@ -217,6 +217,11 @@ void Handle<Entity>::add(T_component aComponent)
     {
         addedQuery->signalEntityAdded(*this, newRecord);
     }
+
+#if defined(ENTITY_SANTIZE)
+    assert(initialArchetype.verifyHandlesConsistency(*mManager));
+    assert(targetArchetype.verifyHandlesConsistency(*mManager));
+#endif
 }
 
 
@@ -231,6 +236,7 @@ void Handle<Entity>::remove()
     Archetype & targetArchetype = mManager->archetype(targetArchetypeKey);
 
     Archetype & initialArchetype = mManager->archetype(initialArchetypeKey);
+
     // Notify the query backends that match source archetype, but not target archetype,
     // that the entity is being removed.
     auto removedBackends = mManager->getExtraQueryBackends(initialArchetype, targetArchetype);
@@ -255,6 +261,11 @@ void Handle<Entity>::remove()
         .mIndex = newIndex,
     };
     updateRecord(newRecord);
+
+#if defined(ENTITY_SANTIZE)
+    assert(initialArchetype.verifyHandlesConsistency(*mManager));
+    assert(targetArchetype.verifyHandlesConsistency(*mManager));
+#endif
 }
 
 

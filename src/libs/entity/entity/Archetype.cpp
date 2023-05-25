@@ -66,6 +66,7 @@ bool Archetype::verifyHandlesConsistency(EntityManager & aManager)
         bool archetypeIsConsistent = &handle.archetype() == this;
         if (!orderIsConsistent || !archetypeIsConsistent)
         {
+            // Leave a line for the breakpoint
             return false;
         }
     }
@@ -104,14 +105,20 @@ bool Archetype::verifyStoresConsistency()
 void Archetype::move(std::size_t aEntityIndex, Archetype & aDestination, EntityManager & aManager)
 {
     // Move the matching components from the stores of `this` archetype to the destination stores.
-    for(std::size_t sourceStoreId = 0; sourceStoreId != mType.size(); ++sourceStoreId)
+    for(std::size_t sourceStoreId = 0;
+        sourceStoreId != mType.size();
+        ++sourceStoreId)
     {
-        for(std::size_t destinationStoreId = 0; destinationStoreId != aDestination.mType.size(); ++destinationStoreId)
+        for(std::size_t destinationStoreId = 0; 
+            destinationStoreId != aDestination.mType.size();
+            ++destinationStoreId)
         {
             // Found matching components, move-push from source at the back of destination
             if(mType[sourceStoreId] == aDestination.mType[destinationStoreId])
             {
-                aDestination.mStores[destinationStoreId]->moveFrom(aEntityIndex, *mStores[sourceStoreId]);
+                aDestination.mStores[destinationStoreId]
+                    ->moveFrom(aEntityIndex, *mStores[sourceStoreId]);
+                break; // Once the matching destination store has been found, go to next source store.
             }
         }
     }
