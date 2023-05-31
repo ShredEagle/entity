@@ -104,6 +104,13 @@ bool Archetype::verifyStoresConsistency()
 
 void Archetype::move(std::size_t aEntityIndex, Archetype & aDestination, EntityManager & aManager)
 {
+#if defined(ENTITY_SANITIZE)
+    // If one of the archetypes is currently under iteration via Query::each(),
+    // the iterated containers would be modified during the iteration, which is an error.
+    assert(this->mCurrentQueryIterations == 0);
+    assert(aDestination.mCurrentQueryIterations == 0);
+#endif
+
     // Move the matching components from the stores of `this` archetype to the destination stores.
     for(std::size_t sourceStoreId = 0;
         sourceStoreId != mType.size();
@@ -131,6 +138,11 @@ void Archetype::move(std::size_t aEntityIndex, Archetype & aDestination, EntityM
 
 void Archetype::remove(EntityIndex aEntityIndex, EntityManager & aManager)
 {
+#if defined(ENTITY_SANITIZE)
+    // If this archetype is currently under iteration via Query::each(), there is an error.
+    assert(mCurrentQueryIterations == 0);
+#endif
+
     // Redirects the handle of the entity that will take the place of the removed entity
     {
         // This is the entity that will take the place of the removed entity in the stores.
@@ -148,6 +160,16 @@ void Archetype::remove(EntityIndex aEntityIndex, EntityManager & aManager)
     {
         mStores[storeId]->remove(aEntityIndex);
     }
+}
+
+
+void Archetype::pushKey(HandleKey<Entity> aKey)
+{
+#if defined(ENTITY_SANITIZE)
+    // If this archetype is currently under iteration via Query::each(), there is an error.
+    assert(mCurrentQueryIterations == 0);
+#endif
+    mHandles.push_back(aKey); 
 }
 
 

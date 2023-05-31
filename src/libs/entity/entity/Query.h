@@ -7,6 +7,9 @@
 #include "detail/QueryBackend.h"
 
 #include <handy/FunctionTraits.h>
+#if defined(ENTITY_SANITIZE)
+#include <handy/Guard.h>
+#endif
 
 #include <numeric>
 
@@ -194,6 +197,13 @@ void Query<VT_components...>::each(F_function && aCallback)
 #endif
     for(const auto & match : matches())
     {
+#if defined(ENTITY_SANITIZE)
+        // We increment the atomic counter to signal this archetype is currently iterated.
+        // This value should be checked by each operation mutating the archetype list of entities.
+        auto & iterations = getArchetype(match).mCurrentQueryIterations;
+        ++iterations;
+        Guard iterationIncrementScope{[&iterations]{--iterations;}};
+#endif
         // Note: The reference remains valid for the loop, because all operations
         // which could potentially invalidate it (such as adding a new archetype)
         // are deferred until the end of the phase.
@@ -202,7 +212,6 @@ void Query<VT_components...>::each(F_function && aCallback)
         const std::vector<HandleKey<Entity>> & handleKeys = getArchetype(match).getEntityIndices();
         for(std::size_t entityId = 0; entityId != size; ++entityId)
         {
-
             detail::Invoker<handy::FunctionArgument_tuple<F_function>>::template invoke<VT_components...>(
                 std::forward<F_function>(aCallback),
                 Handle<Entity>{handleKeys[entityId], *mManager},
@@ -224,6 +233,11 @@ void Query<VT_components...>::eachPair(F_function && aCallback)
         matchItA != matches().end();
         ++matchItA)
     {
+#if defined(ENTITY_SANITIZE)
+        auto & iterations = getArchetype(*matchItA).mCurrentQueryIterations;
+        ++iterations;
+        Guard iterationIncrementScope{[&iterations]{--iterations;}};
+#endif
         // Note: The reference remains valid for the loop, because all operations
         // which could potentially invalidate it (such as adding a new archetype)
         // are deferred until the end of the phase.
@@ -254,6 +268,11 @@ void Query<VT_components...>::eachPair(F_function && aCallback)
                 matchItB != matches().end();
                 ++matchItB)
             {
+#if defined(ENTITY_SANITIZE)
+                auto & iterations = getArchetype(*matchItB).mCurrentQueryIterations;
+                ++iterations;
+                Guard iterationIncrementScope{[&iterations]{--iterations;}};
+#endif
                 Archetype & archetypeB = getArchetype(*matchItB);
                 std::tuple<Storage<VT_components> & ...> storagesB = getStorages(*matchItB);
                 const std::vector<HandleKey<Entity>> & handleKeysB = getArchetype(*matchItB).getEntityIndices();

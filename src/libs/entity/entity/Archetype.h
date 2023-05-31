@@ -3,6 +3,10 @@
 #include "Component.h"
 #include "HandleKey.h"
 
+#if defined(ENTITY_SANITIZE)
+#include <handy/AtomicVariations.h>
+#endif
+
 #include <algorithm>
 #include <memory>
 #include <stdexcept>
@@ -193,8 +197,7 @@ public:
     EntityIndex push(T_component aComponent);
 
     /// \attention For use by the EntityManager on the empty archetype only.
-    void pushKey(HandleKey<Entity> aKey)
-    { mHandles.push_back(aKey); }
+    void pushKey(HandleKey<Entity> aKey);
 
     // TODO should not be public, this is an implementation detail for queries
     template <class T_component>
@@ -206,6 +209,10 @@ public:
     /// \attention implementation detail, intended for use by Query iteration.
     const std::vector<HandleKey<Entity>> & getEntityIndices() const
     { return mHandles; }
+
+#if defined(ENTITY_SANITIZE)
+    CopyableAtomic<unsigned int> mCurrentQueryIterations{0};
+#endif
 
 private:
     /// \brief Intended for tests, makes sure that each store size matche the count of handles.
