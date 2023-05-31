@@ -155,11 +155,11 @@ public:
 
     /// \brief Constructs an Archetype which extends this Archetype with component T_component
     template <class T_component>
-    Archetype makeExtended() const;
+    std::unique_ptr<Archetype> makeExtended() const;
 
     /// \brief Constructs an Archetype which restricts this Archetype, excluding component T_component
     template <class T_component>
-    Archetype makeRestricted() const;
+    std::unique_ptr<Archetype> makeRestricted() const;
 
     std::size_t countEntities() const;
 
@@ -279,38 +279,38 @@ ComponentId Storage<T_component>::getType()
 
 
 template <class T_component>
-Archetype Archetype::makeExtended() const
+std::unique_ptr<Archetype> Archetype::makeExtended() const
 {
     // TODO reuse the typeset already computed in the calling code
     // once we directly stores the typeset in the Archetype.
-    Archetype result;
-    result.mType = mType;
-    result.mType.push_back(getId<T_component>());
+    auto result = std::make_unique<Archetype>();
+    result->mType = mType;
+    result->mType.push_back(getId<T_component>());
 
     for (const auto & store : mStores)
     {
-        result.mStores.push_back(store->cloneEmpty());
+        result->mStores.push_back(store->cloneEmpty());
     }
-    result.mStores.push_back(std::make_unique<Storage<T_component>>());
+    result->mStores.push_back(std::make_unique<Storage<T_component>>());
 
     return result;
 }
 
 
 template <class T_component>
-Archetype Archetype::makeRestricted() const
+std::unique_ptr<Archetype> Archetype::makeRestricted() const
 {
     ComponentId retired = getId<T_component>();
 
-    Archetype result;
-    result.mType = mType;
-    std::erase(result.mType, retired);
+    auto result = std::make_unique<Archetype>();
+    result->mType = mType;
+    std::erase(result->mType, retired);
 
     for (const auto & store : mStores)
     {
         if(store->getType() != retired)
         {
-            result.mStores.push_back(store->cloneEmpty());
+            result->mStores.push_back(store->cloneEmpty());
         }
     }
 

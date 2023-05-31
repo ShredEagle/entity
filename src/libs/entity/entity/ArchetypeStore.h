@@ -6,6 +6,7 @@
 #include "entity/HandleKey.h"
 
 #include <map>
+#include <memory>
 #include <vector>
 
 
@@ -17,6 +18,8 @@ class ArchetypeStore
 {
 public:
     std::pair<Archetype &, HandleKey<Archetype>> getEmptyArchetype();
+
+    ArchetypeStore & operator=(const ArchetypeStore & aRhs);
 
     Archetype & get(HandleKey<Archetype> aKey);
     const Archetype & get(HandleKey<Archetype> aKey) const;
@@ -33,12 +36,22 @@ public:
 
     template <class F_maker>
     std::pair<HandleKey<Archetype>, bool> makeIfAbsent(const TypeSet & aTargetTypeSet,
-                                               F_maker aMakeCallback);
+                                                       F_maker aMakeCallback);
 
 private:
+    static std::vector<std::unique_ptr<Archetype>> getInitialVector()
+    { 
+        std::vector<std::unique_ptr<Archetype>> result;
+        result.push_back(std::make_unique<Archetype>());
+        return result;
+    };
+
     inline static const TypeSet gEmptyTypeSet{};
 
-    std::vector<Archetype> mHandleToArchetype{Archetype{}};
+    // Initially, we stored the archetype by value in the vector
+    // Yet on reallocation, this would invalidate all reference to the archetype
+    // (notably, to its vector of handles in Query::each())
+    std::vector<std::unique_ptr<Archetype>> mHandleToArchetype{getInitialVector()};
     std::map<TypeSet, HandleKey<Archetype>> mTypeSetToArchetype{
         {
             gEmptyTypeSet,
@@ -51,7 +64,7 @@ private:
 inline std::pair<Archetype &, HandleKey<Archetype>> ArchetypeStore::getEmptyArchetype()
 {
     return {
-        mHandleToArchetype[0],
+        *mHandleToArchetype[0],
         {},
     };
 }
@@ -59,12 +72,12 @@ inline std::pair<Archetype &, HandleKey<Archetype>> ArchetypeStore::getEmptyArch
 
 inline Archetype & ArchetypeStore::get(HandleKey<Archetype> aKey)
 {
-    return mHandleToArchetype.at(aKey);
+    return *mHandleToArchetype.at(aKey);
 }
 
 inline const Archetype & ArchetypeStore::get(HandleKey<Archetype> aKey) const
 {
-    return mHandleToArchetype.at(aKey);
+    return *mHandleToArchetype.at(aKey);
 }
 
 
@@ -76,7 +89,7 @@ inline HandleKey<Archetype> ArchetypeStore::getKey(TypeSet aTypeSet)
 
 template <class F_maker>
 std::pair<HandleKey<Archetype>, bool> ArchetypeStore::makeIfAbsent(const TypeSet & aTargetTypeSet,
-                                                                F_maker aMakeCallback)
+                                                                   F_maker aMakeCallback)
 {
     if (auto found = mTypeSetToArchetype.find(aTargetTypeSet);
         found != mTypeSetToArchetype.end())

@@ -74,7 +74,7 @@ class EntityManager
     private:
         template <class F_maker>
         HandleKey<Archetype> makeArchetypeIfAbsent(const TypeSet & aTargetTypeSet,
-                                           F_maker && aMakeCallback);
+                                                   F_maker && aMakeCallback);
 
         /// \brief Get an available handle. Prefers returning from the free list if not empty.
         HandleKey<Entity> getAvailableHandle();
@@ -335,7 +335,7 @@ HandleKey<Archetype> EntityManager::InternalState::restrictArchetype(const Arche
 
 template <class F_maker>
 HandleKey<Archetype> EntityManager::InternalState::makeArchetypeIfAbsent(const TypeSet & aTargetTypeSet,
-                                                                      F_maker && aMakeCallback)
+                                                                         F_maker && aMakeCallback)
 {
     auto [handle, didInsert] =
             mArchetypes.makeIfAbsent(aTargetTypeSet, std::forward<F_maker>(aMakeCallback));
