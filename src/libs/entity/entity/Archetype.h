@@ -179,9 +179,12 @@ public:
     bool verifyStoresConsistency();
 
     // TODO should probably not be public
-    /// \brief Move an entity from this Archetype to aDestination Archetype.
+    /// \brief Move an entity from `this` Archetype (i.e. the source) to `aDestination` Archetype.
     /// Will only attempt to move the common components.
+    /// \param aEntityIndex is the index of the moved entity in the source, i.e. in `this` Archetype.
     /// \return The HandleKey of the entity which was moved to the index previously
+    /// \warning If source and destination are the same Archetype (`aDestination` Archetype is `this` archetype),
+    /// the archetype will be left unchanged by the operation.
     void move(EntityIndex aEntityIndex,
               Archetype & aDestination,
               EntityManager & aManager);
