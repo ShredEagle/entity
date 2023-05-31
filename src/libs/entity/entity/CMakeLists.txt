@@ -39,6 +39,11 @@ add_library(ad::${TARGET_NAME} ALIAS ${TARGET_NAME})
 
 cmc_target_current_include_directory(${TARGET_NAME})
 
+option(BUILD_ENTITY_SANITIZE "Build entity with sanitize assertions enabled." OFF)
+if(BUILD_ENTITY_SANITIZE)
+    target_compile_definitions(${TARGET_NAME} PUBLIC "ENTITY_SANITIZE")
+endif()
+
 set_target_properties(${TARGET_NAME} PROPERTIES
                       VERSION "${${PROJECT_NAME}_VERSION}"
 )
