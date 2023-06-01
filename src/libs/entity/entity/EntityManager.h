@@ -74,7 +74,7 @@ class EntityManager
     private:
         template <class F_maker>
         HandleKey<Archetype> makeArchetypeIfAbsent(const TypeSet & aTargetTypeSet,
-                                           F_maker && aMakeCallback);
+                                                   F_maker && aMakeCallback);
 
         /// \brief Get an available handle. Prefers returning from the free list if not empty.
         HandleKey<Entity> getAvailableHandle();
@@ -169,7 +169,7 @@ private:
 //
 // Implementations
 //
-// NOTE: In this file because it needs EntityManager definition.
+// NOTE: Implemented this file because it needs EntityManager definition.
 template <class T_component>
 void Handle<Entity>::add(T_component aComponent)
 {
@@ -188,35 +188,50 @@ void Handle<Entity>::add(T_component aComponent)
     EntityIndex newIndex = targetArchetype.countEntities();
     initialArchetype.move(initialRecord.mIndex, targetArchetype, *mManager);
 
-    // TODO ideally, we get rid of this test, so the implementations is as fast as possible
-    // when the component is not present,
-    // and it is suboptimal if it is already present.
-    // The problem is with the push
-    if (! initialArchetype.has<T_component>()) [[likely]]
-    {
-        targetArchetype.push(std::move(aComponent));
-    }
-    else
-    {
-        // When the target archetype is the same as the source archetype
-        // the target archetype will not grow in size, so decrement the new index.
-        --newIndex;
-        targetArchetype.get<T_component>(newIndex) = std::move(aComponent);
-    }
-
     EntityRecord newRecord{
         .mArchetype = targetArchetypeKey,
         .mIndex = newIndex,
     };
-    updateRecord(newRecord);
+
+    // TODO ideally, we get rid of this test, so the implementations is as fast as possible
+    // when the component is not present,
+    // and it is suboptimal if it is already present.
+    // The problem is with the push vs assign, and the difference in record index.
+    if (!initialArchetype.has<T_component>()) [[likely]]
+    {
+        targetArchetype.push(std::move(aComponent));
+        updateRecord(newRecord);
+    }
+    else
+    {
+        // If the component was already present, move() left the entity at the same index,
+        // in the same archetype.
+        // We need to replace the value, but there is no need to update the EntityRecord.
+        targetArchetype.get<T_component>(initialRecord.mIndex) = std::move(aComponent);
+        newRecord.mIndex = initialRecord.mIndex; // Just for consistency, this is not used later.
+
+        // Discussion from 2023/05/27: even there might be legitimate cases
+        // to get in this scenario, disallow it for the moment. 
+        // If it shows up, we can allow it via a parameter / distinct member function.
+        // --
+        // But it would break tests.
+        //assert(false);
+    }
 
     // Notify the query backends that match target archetype, but not source archetype,
     // that a new entity was added.
     auto addedBackends = mManager->getExtraQueryBackends(targetArchetype, initialArchetype);
     for (const auto & addedQuery : addedBackends)
     {
+        // We should not pass there if this is a redundant add().
+        assert(!initialArchetype.has<T_component>());
         addedQuery->signalEntityAdded(*this, newRecord);
     }
+
+#if defined(ENTITY_SANTIZE)
+    assert(initialArchetype.verifyHandlesConsistency(*mManager));
+    assert(targetArchetype.verifyHandlesConsistency(*mManager));
+#endif
 }
 
 
@@ -231,6 +246,7 @@ void Handle<Entity>::remove()
     Archetype & targetArchetype = mManager->archetype(targetArchetypeKey);
 
     Archetype & initialArchetype = mManager->archetype(initialArchetypeKey);
+
     // Notify the query backends that match source archetype, but not target archetype,
     // that the entity is being removed.
     auto removedBackends = mManager->getExtraQueryBackends(initialArchetype, targetArchetype);
@@ -243,18 +259,33 @@ void Handle<Entity>::remove()
     EntityIndex newIndex = targetArchetype.countEntities();
     initialArchetype.move(initialRecord.mIndex, targetArchetype, *mManager);
 
-    if (!initialArchetype.has<T_component>()) [[unlikely]]
+    // If the component was not present, move() left the entity at the same index, nothing to be done.
+    if (initialArchetype.has<T_component>()) [[likely]]
     {
-        // When the target archetype is the same as the source archetype (i.e., the component was not present)
-        // the target archetype will not grow in size, so decrement the new index.
-        --newIndex;
+        EntityRecord newRecord{
+            .mArchetype = targetArchetypeKey,
+            .mIndex = newIndex,
+        };
+        updateRecord(newRecord);
+    }
+    else
+    {
+        // If the component was not present, move() left the entity at the same index,
+        // in the same archetype.
+        // There is nothing to do in this situation.
+
+        // Discussion from 2023/05/27: even there might be legitimate cases
+        // to get in this scenario, disallow it for the moment. 
+        // If it shows up, we can allow it via a parameter / distinct member function.
+        // --
+        // But it would break tests.
+        //assert(false);
     }
 
-    EntityRecord newRecord{
-        .mArchetype = targetArchetypeKey,
-        .mIndex = newIndex,
-    };
-    updateRecord(newRecord);
+#if defined(ENTITY_SANTIZE)
+    assert(initialArchetype.verifyHandlesConsistency(*mManager));
+    assert(targetArchetype.verifyHandlesConsistency(*mManager));
+#endif
 }
 
 
@@ -304,7 +335,7 @@ HandleKey<Archetype> EntityManager::InternalState::restrictArchetype(const Arche
 
 template <class F_maker>
 HandleKey<Archetype> EntityManager::InternalState::makeArchetypeIfAbsent(const TypeSet & aTargetTypeSet,
-                                                                      F_maker && aMakeCallback)
+                                                                         F_maker && aMakeCallback)
 {
     auto [handle, didInsert] =
             mArchetypes.makeIfAbsent(aTargetTypeSet, std::forward<F_maker>(aMakeCallback));

@@ -35,12 +35,13 @@ std::size_t Archetype::countEntities() const
 {
     auto result = mHandles.size();
 
-    // TODO implement level of assertion / way to disable.
-    // All stores **have to** be of the same size.
+#if defined(ENTITY_SANITIZE)
     assert(checkStoreSize());
+#endif
 
     return result;
 }
+
 
 bool Archetype::checkStoreSize() const
 {
@@ -53,30 +54,48 @@ bool Archetype::checkStoreSize() const
     return result;
 }
 
-bool Archetype::verifyConsistency()
+
+bool Archetype::verifyHandlesConsistency(EntityManager & aManager)
 {
+    for(std::size_t entityIdx = 0; entityIdx != mHandles.size(); ++entityIdx)
+    {
+        Handle<Entity> handle{mHandles[entityIdx], aManager};
+        // True if index `mIndex` stored in the EntityRecord is the same as the actual index of the Entity in the archetype.
+        bool orderIsConsistent = handle.record().mIndex == entityIdx;
+        // True if the archetype for the entity behind handleKey is `this` instance.
+        bool archetypeIsConsistent = &handle.archetype() == this;
+        if (!orderIsConsistent || !archetypeIsConsistent)
+        {
+            // Leave a line for the breakpoint
+            return false;
+        }
+    }
+    return true;
+}
+
+
+bool Archetype::verifyStoresConsistency()
+{
+    // Ensure there are as much Stores for components as types in the the Archetype.
     if(mType.size() != mStores.size())
     {
         return false;
     }
 
-    std::size_t entitiesCount = countEntities();
-
-    if(entitiesCount != mHandles.size())
-    {
-        return false;
-    }
-
+    // Ensure that the type of component in each Store matche the type in mType.
     for(std::size_t storeId = 0; storeId != mType.size(); ++storeId)
     {
         if(mType[storeId] != mStores[storeId]->getType())
         {
             return false;
         }
-        else if(mStores[storeId]->size() != entitiesCount)
-        {
-            return false;
-        }
+    }
+
+    // Ensure the entities counts matches the count of handles (redundant) and the number of element in each Storage.
+    std::size_t entitiesCount = countEntities();
+    if(entitiesCount != mHandles.size() || !checkStoreSize())
+    {
+        return false;
     }
 
     return true;
@@ -85,15 +104,28 @@ bool Archetype::verifyConsistency()
 
 void Archetype::move(std::size_t aEntityIndex, Archetype & aDestination, EntityManager & aManager)
 {
+#if defined(ENTITY_SANITIZE)
+    // If one of the archetypes is currently under iteration via Query::each(),
+    // the iterated containers would be modified during the iteration, which is an error.
+    assert(this->mCurrentQueryIterations == 0);
+    assert(aDestination.mCurrentQueryIterations == 0);
+#endif
+
     // Move the matching components from the stores of `this` archetype to the destination stores.
-    for(std::size_t sourceStoreId = 0; sourceStoreId != mType.size(); ++sourceStoreId)
+    for(std::size_t sourceStoreId = 0;
+        sourceStoreId != mType.size();
+        ++sourceStoreId)
     {
-        for(std::size_t destinationStoreId = 0; destinationStoreId != aDestination.mType.size(); ++destinationStoreId)
+        for(std::size_t destinationStoreId = 0; 
+            destinationStoreId != aDestination.mType.size();
+            ++destinationStoreId)
         {
             // Found matching components, move-push from source at the back of destination
             if(mType[sourceStoreId] == aDestination.mType[destinationStoreId])
             {
-                aDestination.mStores[destinationStoreId]->moveFrom(aEntityIndex, *mStores[sourceStoreId]);
+                aDestination.mStores[destinationStoreId]
+                    ->moveFrom(aEntityIndex, *mStores[sourceStoreId]);
+                break; // Once the matching destination store has been found, go to next source store.
             }
         }
     }
@@ -106,6 +138,11 @@ void Archetype::move(std::size_t aEntityIndex, Archetype & aDestination, EntityM
 
 void Archetype::remove(EntityIndex aEntityIndex, EntityManager & aManager)
 {
+#if defined(ENTITY_SANITIZE)
+    // If this archetype is currently under iteration via Query::each(), there is an error.
+    assert(mCurrentQueryIterations == 0);
+#endif
+
     // Redirects the handle of the entity that will take the place of the removed entity
     {
         // This is the entity that will take the place of the removed entity in the stores.
@@ -123,6 +160,16 @@ void Archetype::remove(EntityIndex aEntityIndex, EntityManager & aManager)
     {
         mStores[storeId]->remove(aEntityIndex);
     }
+}
+
+
+void Archetype::pushKey(HandleKey<Entity> aKey)
+{
+#if defined(ENTITY_SANITIZE)
+    // If this archetype is currently under iteration via Query::each(), there is an error.
+    assert(mCurrentQueryIterations == 0);
+#endif
+    mHandles.push_back(aKey); 
 }
 
 

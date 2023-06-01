@@ -7,6 +7,9 @@
 #include "detail/QueryBackend.h"
 
 #include <handy/FunctionTraits.h>
+#if defined(ENTITY_SANITIZE)
+#include <handy/Guard.h>
+#endif
 
 #include <numeric>
 
@@ -39,6 +42,9 @@ public:
 
     /// \brief Number of distinct entities matching the query.
     std::size_t countMatches() const;
+
+    /// \brief Check the consistency of the handles and archetypes.
+    [[nodiscard]] bool verifyArchetypes();
 
     /// \brief Iteration over all entities matching the query.
     template <class F_function>
@@ -146,14 +152,58 @@ std::size_t Query<VT_components...>::countMatches() const
                            });
 }
 
-// TODO replace F_function with T_function
 
+template<class... VT_components>
+bool Query<VT_components...>::verifyArchetypes()
+{
+    const auto queryTypeSet = getTypeSet<VT_components...>();
+    for(const auto & match : matches())
+    {
+        auto & archetype = getArchetype(match);
+        bool storesConsistency = archetype.verifyStoresConsistency();
+        // Checks that the handle archetype is the same 
+        // as the archetype that back link to the handle
+        // This is important because archetypes contain a list of
+        // EntityKey that might be wrong
+        bool handlesConsistency = archetype.verifyHandlesConsistency(*mManager);
+
+        // Checks that the archetype of this match
+        // contains storage for each component type in this Query.
+        bool archetypeHaveRequiredTypes = true;
+        for(auto componentId : queryTypeSet)
+        {
+            archetypeHaveRequiredTypes &= archetype.getTypeSet().contains(componentId);
+        }
+
+        if(!storesConsistency || ! handlesConsistency || !archetypeHaveRequiredTypes)
+        {
+            // Leave a line for the breakpoint
+            return false;
+        }
+    }
+
+    return true;
+}
+
+
+// TODO replace F_function with T_function
+//
 template <class... VT_components>
 template <class F_function>
 void Query<VT_components...>::each(F_function && aCallback)
 {
+#if defined(ENTITY_SANITIZE)
+    assert(verifyArchetypes());
+#endif
     for(const auto & match : matches())
     {
+#if defined(ENTITY_SANITIZE)
+        // We increment the atomic counter to signal this archetype is currently iterated.
+        // This value should be checked by each operation mutating the archetype list of entities.
+        auto & iterations = getArchetype(match).mCurrentQueryIterations;
+        ++iterations;
+        Guard iterationIncrementScope{[&iterations]{--iterations;}};
+#endif
         // Note: The reference remains valid for the loop, because all operations
         // which could potentially invalidate it (such as adding a new archetype)
         // are deferred until the end of the phase.
@@ -176,10 +226,18 @@ template <class... VT_components>
 template <class F_function>
 void Query<VT_components...>::eachPair(F_function && aCallback)
 {
+#if defined(ENTITY_SANITIZE)
+    assert(verifyArchetypes());
+#endif
     for(auto matchItA = matches().begin();
         matchItA != matches().end();
         ++matchItA)
     {
+#if defined(ENTITY_SANITIZE)
+        auto & iterations = getArchetype(*matchItA).mCurrentQueryIterations;
+        ++iterations;
+        Guard iterationIncrementScope{[&iterations]{--iterations;}};
+#endif
         // Note: The reference remains valid for the loop, because all operations
         // which could potentially invalidate it (such as adding a new archetype)
         // are deferred until the end of the phase.
@@ -210,6 +268,11 @@ void Query<VT_components...>::eachPair(F_function && aCallback)
                 matchItB != matches().end();
                 ++matchItB)
             {
+#if defined(ENTITY_SANITIZE)
+                auto & iterations = getArchetype(*matchItB).mCurrentQueryIterations;
+                ++iterations;
+                Guard iterationIncrementScope{[&iterations]{--iterations;}};
+#endif
                 Archetype & archetypeB = getArchetype(*matchItB);
                 std::tuple<Storage<VT_components> & ...> storagesB = getStorages(*matchItB);
                 const std::vector<HandleKey<Entity>> & handleKeysB = getArchetype(*matchItB).getEntityIndices();

@@ -3,6 +3,10 @@
 #include "Component.h"
 #include "HandleKey.h"
 
+#if defined(ENTITY_SANITIZE)
+#include <handy/AtomicVariations.h>
+#endif
+
 #include <algorithm>
 #include <memory>
 #include <stdexcept>
@@ -74,6 +78,8 @@ public:
     std::unique_ptr<StorageBase> clone() const override
     { return std::make_unique<Storage<T_component>>(*this); }
 
+    // Note: pushes back into mArray, but do not remove from source.
+    // Archetype::remove() will take care of that removal.
     void moveFrom(EntityIndex aSourceIndex, StorageBase & aSource) override
     { mArray.push_back(std::move(aSource.get<T_component>(aSourceIndex))); }
 
@@ -153,15 +159,13 @@ public:
 
     /// \brief Constructs an Archetype which extends this Archetype with component T_component
     template <class T_component>
-    Archetype makeExtended() const;
+    std::unique_ptr<Archetype> makeExtended() const;
 
     /// \brief Constructs an Archetype which restricts this Archetype, excluding component T_component
     template <class T_component>
-    Archetype makeRestricted() const;
+    std::unique_ptr<Archetype> makeRestricted() const;
 
     std::size_t countEntities() const;
-
-    bool checkStoreSize() const;
 
     template <class T_component>
     bool has() const;
@@ -171,12 +175,20 @@ public:
 
     void remove(EntityIndex aEntityIndex, EntityManager & aManager);
 
+    /// \brief Intended for tests, makes sure that each handle in this Archetype
+    /// corresponds to an Entity whose archetype is this instance.
+    bool verifyHandlesConsistency(EntityManager & aManager);
+
     // Intended for tests
-    bool verifyConsistency();
+    bool verifyStoresConsistency();
 
     // TODO should probably not be public
-    /// \brief Move an entity from this Archetype to aDestination Archetype.
+    /// \brief Move an entity from `this` Archetype (i.e. the source) to `aDestination` Archetype.
+    /// Will only attempt to move the common components.
+    /// \param aEntityIndex is the index of the moved entity in the source, i.e. in `this` Archetype.
     /// \return The HandleKey of the entity which was moved to the index previously
+    /// \warning If source and destination are the same Archetype (`aDestination` Archetype is `this` archetype),
+    /// the archetype will be left unchanged by the operation.
     void move(EntityIndex aEntityIndex,
               Archetype & aDestination,
               EntityManager & aManager);
@@ -185,8 +197,7 @@ public:
     EntityIndex push(T_component aComponent);
 
     /// \attention For use by the EntityManager on the empty archetype only.
-    void pushKey(HandleKey<Entity> aKey)
-    { mHandles.push_back(aKey); }
+    void pushKey(HandleKey<Entity> aKey);
 
     // TODO should not be public, this is an implementation detail for queries
     template <class T_component>
@@ -196,10 +207,17 @@ public:
     Storage<T_component> & getStorage(StorageIndex<T_component> aComponentIndex);
 
     /// \attention implementation detail, intended for use by Query iteration.
-    const std::vector<HandleKey<Entity>> getEntityIndices() const
+    const std::vector<HandleKey<Entity>> & getEntityIndices() const
     { return mHandles; }
 
+#if defined(ENTITY_SANITIZE)
+    CopyableAtomic<unsigned int> mCurrentQueryIterations{0};
+#endif
+
 private:
+    /// \brief Intended for tests, makes sure that each store size matche the count of handles.
+    bool checkStoreSize() const;
+
     //std::size_t mSize{0};
     // TODO cache typeset, or even better only have a typeset, so the components are ordered
     //TypeSet mTypeSet;
@@ -268,38 +286,38 @@ ComponentId Storage<T_component>::getType()
 
 
 template <class T_component>
-Archetype Archetype::makeExtended() const
+std::unique_ptr<Archetype> Archetype::makeExtended() const
 {
     // TODO reuse the typeset already computed in the calling code
     // once we directly stores the typeset in the Archetype.
-    Archetype result;
-    result.mType = mType;
-    result.mType.push_back(getId<T_component>());
+    auto result = std::make_unique<Archetype>();
+    result->mType = mType;
+    result->mType.push_back(getId<T_component>());
 
     for (const auto & store : mStores)
     {
-        result.mStores.push_back(store->cloneEmpty());
+        result->mStores.push_back(store->cloneEmpty());
     }
-    result.mStores.push_back(std::make_unique<Storage<T_component>>());
+    result->mStores.push_back(std::make_unique<Storage<T_component>>());
 
     return result;
 }
 
 
 template <class T_component>
-Archetype Archetype::makeRestricted() const
+std::unique_ptr<Archetype> Archetype::makeRestricted() const
 {
     ComponentId retired = getId<T_component>();
 
-    Archetype result;
-    result.mType = mType;
-    std::erase(result.mType, retired);
+    auto result = std::make_unique<Archetype>();
+    result->mType = mType;
+    std::erase(result->mType, retired);
 
     for (const auto & store : mStores)
     {
         if(store->getType() != retired)
         {
-            result.mStores.push_back(store->cloneEmpty());
+            result->mStores.push_back(store->cloneEmpty());
         }
     }
 
