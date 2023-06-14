@@ -14,6 +14,8 @@ class HandleKey
 public:
     using Underlying_t = std::size_t;
 
+    static constexpr auto gInvalidKey = std::numeric_limits<Underlying_t>::max();
+
     HandleKey() = delete;
 
     constexpr HandleKey(Underlying_t aIndex) :

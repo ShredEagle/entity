@@ -32,6 +32,13 @@ Archetype & Handle<Archetype>::get()
 }
 
 
+Handle<Entity>::Handle() :
+    Handle{
+        HandleKey<Entity>{HandleKey<Entity>::gInvalidKey},
+        EntityManager::getEmptyHandleEntityManager()}
+{}
+
+
 bool Handle<Entity>::isValid() const
 {
     EntityRecord current = record();

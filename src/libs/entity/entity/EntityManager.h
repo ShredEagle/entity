@@ -71,6 +71,8 @@ class EntityManager
         std::vector<detail::QueryBackendBase *>
         getExtraQueryBackends(const Archetype & aCompared, const Archetype & aReference) const;
 
+        void insertInvalidHandleKey();
+
     private:
         template <class F_maker>
         HandleKey<Archetype> makeArchetypeIfAbsent(const TypeSet & aTargetTypeSet,
@@ -145,6 +147,10 @@ private:
     std::vector<detail::QueryBackendBase *>
     getExtraQueryBackends(const Archetype & aCompared, const Archetype & aReference) const
     { return mState->getExtraQueryBackends(aCompared, aReference); }
+
+    // Only used by the default constructor of Handle<Entity>.
+    // See Handle<Entity>::Handle() for context.
+    static EntityManager & getEmptyHandleEntityManager();
 
     std::unique_ptr<InternalState> mState = std::make_unique<InternalState>();
 };

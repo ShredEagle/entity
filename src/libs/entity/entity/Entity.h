@@ -167,6 +167,13 @@ class Handle<Entity>
     friend class detail::QueryBackend;
 
 public:
+    /// \brief Construct a default Handle, which is not valid.
+    /// \details This constructor assigns the invalid HandleKey and a
+    /// static (private) EntityManager to the handle. 
+    /// This EntityManager has an "invalid record" associated to the invalid HandleKey.
+    /// This approach allows to not make a special case for the default constructed handle.
+    Handle();
+
     /// \brief Checks whether the handle is valid, currently pointing to an Entity.
     // TODO not sure it should exist as a standalone, as it duplicates some logic from get()
     bool isValid() const;
