@@ -47,6 +47,8 @@ private:
     };
 
     inline static const TypeSet gEmptyTypeSet{};
+    // Has to be zero (first index in the vector)
+    static constexpr HandleKey<Archetype> gEmptyTypeSetArchetypeHandle{0};
 
     // Initially, we stored the archetype by value in the vector
     // Yet on reallocation, this would invalidate all reference to the archetype
@@ -55,7 +57,7 @@ private:
     std::map<TypeSet, HandleKey<Archetype>> mTypeSetToArchetype{
         {
             gEmptyTypeSet,
-            {}
+            gEmptyTypeSetArchetypeHandle, 
         }
     };
 };
@@ -64,8 +66,8 @@ private:
 inline std::pair<Archetype &, HandleKey<Archetype>> ArchetypeStore::getEmptyArchetype()
 {
     return {
-        *mHandleToArchetype[0],
-        {},
+        *mHandleToArchetype[gEmptyTypeSetArchetypeHandle],
+        gEmptyTypeSetArchetypeHandle,
     };
 }
 
