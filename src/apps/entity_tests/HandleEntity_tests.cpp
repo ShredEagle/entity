@@ -65,6 +65,7 @@ SCENARIO("Handles provide a phase-less view access to Entities.")
     }
 }
 
+
 SCENARIO("Handles are comparable")
 {
     GIVEN("An entity Manager with two handle on the same entity")
@@ -126,6 +127,25 @@ SCENARIO("Handles allow to test the validity of the underlying Entity.")
                     }
                 }
             }
+        }
+    }
+}
+
+
+SCENARIO("Default constructed handles.")
+{
+    GIVEN("A default constructed Entity handle")
+    {
+        Handle<Entity> hDefault;
+
+        THEN("The handle is not valid.")
+        {
+            CHECK_FALSE(hDefault.isValid());
+        }
+
+        THEN("It cannot be used to obtain en Entity.")
+        {
+            CHECK_FALSE(hDefault.get().has_value());
         }
     }
 }

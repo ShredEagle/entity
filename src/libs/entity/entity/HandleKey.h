@@ -12,24 +12,28 @@ template <class>
 class HandleKey
 {
 public:
-    HandleKey() = default;
+    using Underlying_t = std::size_t;
 
-    HandleKey(std::size_t aIndex) :
+    static constexpr auto gInvalidKey = std::numeric_limits<Underlying_t>::max();
+
+    HandleKey() = delete;
+
+    constexpr HandleKey(Underlying_t aIndex) :
         mIndex{aIndex}
     {}
 
-    bool operator==(const HandleKey & aRhs) const = default;
+    constexpr bool operator==(const HandleKey & aRhs) const = default;
 
-    /*implicit: for array access*/ operator std::size_t () const
+    /*implicit: for array access*/ constexpr operator Underlying_t () const
     { return mIndex; }
 
-    HandleKey operator++(int /*postfix*/)
+    constexpr HandleKey operator++(int /*postfix*/)
     {
         return HandleKey{mIndex++};
     }
 
 private:
-    std::size_t mIndex{0};
+    Underlying_t mIndex;
 };
 
 

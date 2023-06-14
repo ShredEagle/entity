@@ -1,11 +1,23 @@
 #include "EntityManager.h"
-#include "entity/Component.h"
+
+#include "Component.h"
 
 #include <iterator>
 
 
 namespace ad {
 namespace ent {
+
+
+EntityManager & EntityManager::getEmptyHandleEntityManager()
+{
+    static EntityManager emptyHandleEntityManager;
+    // Note: Add an entry for the invalid entity key, mapping it to an invalid EntityRecord.
+    // This design allows to implement Handle<Entity>::isValid() logic 
+    // without explicitly testing for the invalid key.
+    emptyHandleEntityManager.mState->insertInvalidHandleKey();
+    return emptyHandleEntityManager;
+}
 
 
 Handle<Archetype> EntityManager::InternalState::getArchetypeHandle(const TypeSet & aTypeSet,
@@ -34,12 +46,14 @@ EntityRecord & EntityManager::InternalState::record(HandleKey<Entity> aKey)
 
 Archetype & EntityManager::InternalState::archetype(HandleKey<Archetype> aHandle)
 {
+    assert(aHandle != HandleKey<Archetype>{HandleKey<Archetype>::gInvalidKey}); // At the moment, there is not Archetype for the invalid key.
     return mArchetypes.get(aHandle);
 }
 
 
 void EntityManager::InternalState::freeHandle(HandleKey<Entity> aKey)
-{
+{ 
+    assert(aKey != HandleKey<Entity>{HandleKey<Entity>::gInvalidKey});
     record(aKey).mIndex = gInvalidIndex;
     mFreedHandles.push_back(std::move(aKey));
 }
@@ -90,6 +104,15 @@ HandleKey<Entity> EntityManager::InternalState::getAvailableHandle()
         mFreedHandles.pop_front();
         return handle;
     }
+}
+
+
+void EntityManager::InternalState::insertInvalidHandleKey()
+{
+    mHandleMap.emplace(
+        HandleKey<Entity>{HandleKey<Entity>::gInvalidKey},
+        EntityRecord{HandleKey<Archetype>::gInvalidKey, gInvalidIndex}
+    );
 }
 
 
