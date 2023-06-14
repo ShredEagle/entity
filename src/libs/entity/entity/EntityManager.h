@@ -80,7 +80,8 @@ class EntityManager
         HandleKey<Entity> getAvailableHandle();
 
         // TODO Refactor the Handle<Entity> related members into a coherent separate class.
-        HandleKey<Entity> mNextHandle;
+        HandleKey<Entity> mNextHandle{0}; // Initially, the first handle is the next handle.
+
         std::map<HandleKey<Entity>, EntityRecord> mHandleMap;
         std::deque<HandleKey<Entity>> mFreedHandles;
 
