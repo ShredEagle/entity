@@ -46,14 +46,14 @@ EntityRecord & EntityManager::InternalState::record(HandleKey<Entity> aKey)
 
 Archetype & EntityManager::InternalState::archetype(HandleKey<Archetype> aHandle)
 {
-    assert(aHandle != HandleKey<Archetype>{HandleKey<Archetype>::gInvalidKey}); // At the moment, there is not Archetype for the invalid key.
+    assert(aHandle != HandleKey<Archetype>::MakeInvalid()); // At the moment, there is not Archetype for the invalid key.
     return mArchetypes.get(aHandle);
 }
 
 
 void EntityManager::InternalState::freeHandle(HandleKey<Entity> aKey)
 { 
-    assert(aKey != HandleKey<Entity>{HandleKey<Entity>::gInvalidKey});
+    assert(aKey != HandleKey<Entity>::MakeInvalid());
     record(aKey).mIndex = gInvalidIndex;
     mFreedHandles.push_back(std::move(aKey));
 }
@@ -110,8 +110,8 @@ HandleKey<Entity> EntityManager::InternalState::getAvailableHandle()
 void EntityManager::InternalState::insertInvalidHandleKey()
 {
     mHandleMap.emplace(
-        HandleKey<Entity>{HandleKey<Entity>::gInvalidKey},
-        EntityRecord{HandleKey<Archetype>::gInvalidKey, gInvalidIndex}
+        HandleKey<Entity>::MakeInvalid(),
+        EntityRecord{HandleKey<Archetype>::MakeInvalid(), gInvalidIndex}
     );
 }
 

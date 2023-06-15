@@ -34,6 +34,8 @@ public:
     auto size() const
     { return mHandleToArchetype.size(); }
 
+    /// \return The HandleKey to the archetype matching `aTargetTypeSet`,
+    /// and true if it was inserted, false if it was already present.
     template <class F_maker>
     std::pair<HandleKey<Archetype>, bool> makeIfAbsent(const TypeSet & aTargetTypeSet,
                                                        F_maker aMakeCallback);
