@@ -50,12 +50,13 @@ private:
 
     inline static const TypeSet gEmptyTypeSet{};
     // Has to be zero (first index in the vector)
-    static constexpr HandleKey<Archetype> gEmptyTypeSetArchetypeHandle{0};
+    static constexpr HandleKey<Archetype> gEmptyTypeSetArchetypeHandle{HandleKey<Archetype>::MakeFirst()};
 
     // Initially, we stored the archetype by value in the vector
     // Yet on reallocation, this would invalidate all reference to the archetype
     // (notably, to its vector of handles in Query::each())
     std::vector<std::unique_ptr<Archetype>> mHandleToArchetype{getInitialVector()};
+    // TODO It is probably not useful to use an HandleKey here, a simple index could be better.
     std::map<TypeSet, HandleKey<Archetype>> mTypeSetToArchetype{
         {
             gEmptyTypeSet,
@@ -106,7 +107,7 @@ std::pair<HandleKey<Archetype>, bool> ArchetypeStore::makeIfAbsent(const TypeSet
         mHandleToArchetype.push_back(aMakeCallback());
         HandleKey<Archetype> inserted = mTypeSetToArchetype.emplace(
             aTargetTypeSet,
-            HandleKey<Archetype>{insertedPosition})
+            HandleKey<Archetype>::MakeIndex(insertedPosition))
             .first->second;
         return {inserted, true};
     }

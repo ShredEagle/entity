@@ -37,7 +37,7 @@ public:
     //}
 
 private:
-    Handle(std::size_t aKey, EntityManager & aManager) :
+    Handle(HandleKey<Archetype> aKey, EntityManager & aManager) :
         mKey{aKey},
         mManager{&aManager}
     {}
@@ -189,6 +189,7 @@ public:
         return aLhs.mKey == aRhs.mKey;
     }
 
+    /// \attention Removes the generation, only returning the index part of the HandleKey.
     EntityIndex id() const
     {
         return mKey;
