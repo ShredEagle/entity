@@ -52,16 +52,21 @@ const HandleKey<Entity> & EntityManager::InternalState::keyForIndex(HandleKey<En
 
 Archetype & EntityManager::InternalState::archetype(HandleKey<Archetype> aHandle)
 {
-    assert(aHandle != HandleKey<Archetype>::MakeInvalid()); // At the moment, there is not Archetype for the invalid key.
     return mArchetypes.get(aHandle);
 }
 
 
 void EntityManager::InternalState::freeHandle(HandleKey<Entity> aKey)
 { 
-    assert(aKey != HandleKey<Entity>::MakeInvalid());
+    // Even though it is possible that the latest handle key is use for a legitimate Handle,
+    // it is very unlikely. 
+    // On the other hand, it is used for the default constructed Handle, and it would be an error
+    // to be able to free it.
+    assert(aKey != HandleKey<Entity>::MakeLatest());
+
+    // Get the reference to the currently stored handle key.
     const auto & handleKey = keyForIndex(aKey);
-    // Increment the generation, so any existing handle to the freed element
+    // Increment the generation of the key in the map, so any existing handle to the freed element
     // will not compare equal anymore (and thus will not be considered to point to a valid Entity).
     handleKey.advanceGeneration();
     // Important: the handle with advanced generation is stord in the free list
@@ -120,12 +125,13 @@ HandleKey<Entity> EntityManager::InternalState::getAvailableHandle()
 
 void EntityManager::InternalState::insertInvalidHandleKey()
 {
-    // Note the InvalidIndex in EntityRecord is not used,
-    // what matters is that the generation for the stored handle is advanced, 
-    // so it will not match the generation of the invalid key.
+    // The default constructed Handle (which is not valid) use the latest HandleKey value.
+    // Storing a record at the same Handle, except its generation wrapped around,
+    // ensure that the default Handle is not valid.
     mHandleMap.emplace(
-        HandleKey<Entity>::MakeInvalid().advanceGeneration(),
-        EntityRecord{HandleKey<Archetype>::MakeInvalid(), gInvalidIndex}
+        HandleKey<Entity>::MakeLatest().advanceGeneration(),
+        EntityRecord{HandleKey<Archetype>::MakeLatest(), // does not matter
+                     std::numeric_limits<EntityIndex>::max()}
     );
 }
 

@@ -34,7 +34,7 @@ Archetype & Handle<Archetype>::get()
 
 Handle<Entity>::Handle() :
     Handle{
-        HandleKey<Entity>::MakeInvalid(),
+        HandleKey<Entity>::MakeLatest(),
         EntityManager::getEmptyHandleEntityManager()}
 {}
 

@@ -26,7 +26,7 @@ private:
     // Note that the functionality of "Invalid Handle<Entity>" does not need a special HandleKey value
     // since it simply use the value to get an invalid record in a dedicated EntityManager (and it could be associated to a normal key).
     // But this might make debugging easier to have a special value.
-    static constexpr auto gInvalidKey = std::numeric_limits<Underlying_t>::max();
+    static constexpr auto gMaxValue = std::numeric_limits<Underlying_t>::max();
 
     // The N high order bits are used for the generation.
     static constexpr auto gGenerationBits = 24;
@@ -43,9 +43,11 @@ public:
         return HandleKey{0};
     }
 
-    static constexpr HandleKey MakeInvalid()
+    /// \brief This HandleKey is not invalid, but has all bits to 1.
+    /// This is intended for the invalid default constructed Handle, to be easily spotted in debug.
+    static constexpr HandleKey MakeLatest()
     {
-        return HandleKey{gInvalidKey};
+        return HandleKey{gMaxValue};
     }
 
     /// \brief Make the handle key with provided index, and first generation.
