@@ -41,20 +41,19 @@ Handle<Entity>::Handle() :
 
 bool Handle<Entity>::isValid() const
 {
-    EntityRecord current = record();
-    return current.mIndex != gInvalidIndex;
+    // This will test if the generation is the same (it would be a logical error if the index was not).
+    // Compare against mKey (which inlcudes the generation), not ::id()
+    return mManager->keyForIndex(mKey) == mKey;
 }
 
 
 std::optional<Entity_view> Handle<Entity>::get() const
 {
-    EntityRecord current = record();
-
     // TODO Potential optimisation: is it wise to to the check here?
     // Knowing that the client has to check.
     // record() already return a nullptr archetype for invalid entities,
     // which could directly be checked by the client.
-    if(current.mIndex != gInvalidIndex)
+    if(isValid())
     {
         return Entity_view{
             reference(),
@@ -69,13 +68,11 @@ std::optional<Entity_view> Handle<Entity>::get() const
 
 std::optional<Entity> Handle<Entity>::get(Phase & aPhase)
 {
-    EntityRecord current = record();
-
     // TODO Potential optimisation: is it wise to to the check here?
     // Knowing that the client has to check.
     // record() already return a nullptr archetype for invalid entities,
     // which could directly be checked by the client.
-    if(current.mIndex != gInvalidIndex)
+    if(isValid())
     {
         return Entity{
             reference(),

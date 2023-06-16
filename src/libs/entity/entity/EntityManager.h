@@ -52,6 +52,13 @@ class EntityManager
         HandleKey<Archetype> restrictArchetype(const Archetype & aArchetype);
 
         EntityRecord & record(HandleKey<Entity> aKey);
+
+        /// \brief Return the complete HandleKey currently associated with the index subpart of `aKey`.
+        /// \details mHandleMap is only comparing the index part of the HandleKey, which means
+        /// this function will return an HandleKey with the same index, but not necessarily the same generation.
+        /// This is usefull to test an Handle validity.
+        const HandleKey<Entity> & keyForIndex(HandleKey<Entity> aKey);
+
         Archetype & archetype(HandleKey<Archetype> aHandle);
 
         void freeHandle(HandleKey<Entity> aKey);
@@ -84,7 +91,10 @@ class EntityManager
         // TODO Refactor the Handle<Entity> related members into a coherent separate class.
         HandleKey<Entity> mNextHandle{HandleKey<Entity>::MakeFirst()}; // Initially, the first handle is the next handle.
 
-        std::map<HandleKey<Entity>, EntityRecord> mHandleMap;
+        // Note: Uses a custom comparison, only testing the index part of the HandleKey (not the generation).
+        // This is to be consistent with the fact that different generations of the same index should be placed 
+        // at the same key position from the map perspective.
+        std::map<HandleKey<Entity>, EntityRecord, HandleKey<Entity>::LessIndex> mHandleMap;
         std::deque<HandleKey<Entity>> mFreedHandles;
 
         // This must appear BEFORE the archetypes, so QueryBackends are destructed AFTER Archetypes:
@@ -126,6 +136,9 @@ private:
 
     EntityRecord & record(HandleKey<Entity> aKey)
     { return mState->record(aKey); }
+
+    const HandleKey<Entity> & keyForIndex(HandleKey<Entity> aKey)
+    { return mState->keyForIndex(aKey); }
 
     Archetype & archetype(HandleKey<Archetype> aHandle)
     { return mState->archetype(aHandle); }

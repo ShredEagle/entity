@@ -44,6 +44,12 @@ EntityRecord & EntityManager::InternalState::record(HandleKey<Entity> aKey)
 }
 
 
+const HandleKey<Entity> & EntityManager::InternalState::keyForIndex(HandleKey<Entity> aKey)
+{
+    return mHandleMap.find(aKey)->first;
+}
+
+
 Archetype & EntityManager::InternalState::archetype(HandleKey<Archetype> aHandle)
 {
     assert(aHandle != HandleKey<Archetype>::MakeInvalid()); // At the moment, there is not Archetype for the invalid key.
@@ -54,8 +60,13 @@ Archetype & EntityManager::InternalState::archetype(HandleKey<Archetype> aHandle
 void EntityManager::InternalState::freeHandle(HandleKey<Entity> aKey)
 { 
     assert(aKey != HandleKey<Entity>::MakeInvalid());
-    record(aKey).mIndex = gInvalidIndex;
-    mFreedHandles.push_back(std::move(aKey));
+    const auto & handleKey = keyForIndex(aKey);
+    // Increment the generation, so any existing handle to the freed element
+    // will not compare equal anymore (and thus will not be considered to point to a valid Entity).
+    handleKey.advanceGeneration();
+    // Important: the handle with advanced generation is stord in the free list
+    // because this is the handle that will be returned by an `addEntity()` re-using it.
+    mFreedHandles.push_back(handleKey);
 }
 
 std::set<detail::QueryBackendBase *>
@@ -109,8 +120,11 @@ HandleKey<Entity> EntityManager::InternalState::getAvailableHandle()
 
 void EntityManager::InternalState::insertInvalidHandleKey()
 {
+    // Note the InvalidIndex in EntityRecord is not used,
+    // what matters is that the generation for the stored handle is advanced, 
+    // so it will not match the generation of the invalid key.
     mHandleMap.emplace(
-        HandleKey<Entity>::MakeInvalid(),
+        HandleKey<Entity>::MakeInvalid().advanceGeneration(),
         EntityRecord{HandleKey<Archetype>::MakeInvalid(), gInvalidIndex}
     );
 }
