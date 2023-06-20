@@ -149,3 +149,40 @@ SCENARIO("Default constructed handles.")
         }
     }
 }
+
+
+SCENARIO("Handle re-use.")
+{
+    GIVEN("An entity manager with an entity.")
+    {
+        EntityManager world;
+        Handle<Entity> h1 = world.addEntity();
+
+        WHEN("The Entity is obtained and erased.")
+        {
+            {
+                Phase scoped;
+                std::optional<Entity> o1 = h1.get(scoped);
+                o1->erase();
+            }
+
+            // Sanity check
+            REQUIRE_FALSE(h1.isValid());
+
+            WHEN("Another entity is added.") 
+            {
+                Handle<Entity> h2 = world.addEntity();
+
+                // Note: this is not a functional requirement of the library,
+                // but the following CHECKs does not validate anything if this assertion does not hold true.
+                REQUIRE(h2.id() == h1.id());
+
+                THEN("The first handle is still invalid.")
+                {
+                    CHECK_FALSE(h1.isValid());
+                    CHECK(h2.isValid());
+                }
+            }
+        }
+    }
+}

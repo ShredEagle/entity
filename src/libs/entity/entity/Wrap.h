@@ -71,8 +71,6 @@ private:
     T_stored & get() const
     {
         const EntityRecord & record = mWrapped.record();
-        assert(record.mIndex != gInvalidIndex); // since we reverted the exclusivitiy between Query and Wrap
-
         // Wrap stores a single component on the entity, so the storage index is 0.
         Storage<T_stored> & storage = mWrapped.archetype().getStorage(StorageIndex<T_stored>{0});
         // We do not check the index validity, no other code should be able to remove the entity.

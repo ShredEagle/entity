@@ -44,18 +44,34 @@ EntityRecord & EntityManager::InternalState::record(HandleKey<Entity> aKey)
 }
 
 
+const HandleKey<Entity> & EntityManager::InternalState::keyForIndex(HandleKey<Entity> aKey)
+{
+    return mHandleMap.find(aKey)->first;
+}
+
+
 Archetype & EntityManager::InternalState::archetype(HandleKey<Archetype> aHandle)
 {
-    assert(aHandle != HandleKey<Archetype>{HandleKey<Archetype>::gInvalidKey}); // At the moment, there is not Archetype for the invalid key.
     return mArchetypes.get(aHandle);
 }
 
 
 void EntityManager::InternalState::freeHandle(HandleKey<Entity> aKey)
 { 
-    assert(aKey != HandleKey<Entity>{HandleKey<Entity>::gInvalidKey});
-    record(aKey).mIndex = gInvalidIndex;
-    mFreedHandles.push_back(std::move(aKey));
+    // Even though it is possible that the latest handle key is use for a legitimate Handle,
+    // it is very unlikely. 
+    // On the other hand, it is used for the default constructed Handle, and it would be an error
+    // to be able to free it.
+    assert(aKey != HandleKey<Entity>::MakeLatest());
+
+    // Get the reference to the currently stored handle key.
+    const auto & handleKey = keyForIndex(aKey);
+    // Increment the generation of the key in the map, so any existing handle to the freed element
+    // will not compare equal anymore (and thus will not be considered to point to a valid Entity).
+    handleKey.advanceGeneration();
+    // Important: the handle with advanced generation is stord in the free list
+    // because this is the handle that will be returned by an `addEntity()` re-using it.
+    mFreedHandles.push_back(handleKey);
 }
 
 std::set<detail::QueryBackendBase *>
@@ -109,9 +125,13 @@ HandleKey<Entity> EntityManager::InternalState::getAvailableHandle()
 
 void EntityManager::InternalState::insertInvalidHandleKey()
 {
+    // The default constructed Handle (which is not valid) use the latest HandleKey value.
+    // Storing a record at the same Handle, except its generation wrapped around,
+    // ensure that the default Handle is not valid.
     mHandleMap.emplace(
-        HandleKey<Entity>{HandleKey<Entity>::gInvalidKey},
-        EntityRecord{HandleKey<Archetype>::gInvalidKey, gInvalidIndex}
+        HandleKey<Entity>::MakeLatest().advanceGeneration(),
+        EntityRecord{HandleKey<Archetype>::MakeLatest(), // does not matter
+                     std::numeric_limits<EntityIndex>::max()}
     );
 }
 
