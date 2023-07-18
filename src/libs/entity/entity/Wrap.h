@@ -2,6 +2,7 @@
 
 #include "Entity.h"
 
+#include "EntityManager.h"
 
 namespace ad {
 namespace ent {
