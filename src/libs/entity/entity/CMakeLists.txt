@@ -2,18 +2,23 @@ set(TARGET_NAME entity)
 
 set(${TARGET_NAME}_HEADERS
     Archetype.h
+    ArchetypeStatic.h
     ArchetypeStore.h
     Component.h
     Entity.h
     EntityManager.h
+    Handle.h
     HandleKey.h
+    Query-decl.h
     Query.h
     QueryStore.h
+    StorageIndex.h
     Wrap.h
 
     detail/CloningPointer.h
     detail/HandledStore.h
     detail/Invoker.h
+    detail/QueryBackend-decl.h
     detail/QueryBackend.h
 )
 
