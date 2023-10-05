@@ -55,6 +55,11 @@ Archetype & EntityManager::InternalState::archetype(HandleKey<Archetype> aHandle
     return mArchetypes.get(aHandle);
 }
 
+const char * EntityManager::InternalState::name(HandleKey<Entity> aHandle) const
+{
+    return mHandleMap.at(aHandle).mNamePtr->c_str();
+}
+
 
 void EntityManager::InternalState::freeHandle(HandleKey<Entity> aKey)
 { 
@@ -69,6 +74,7 @@ void EntityManager::InternalState::freeHandle(HandleKey<Entity> aKey)
     // Increment the generation of the key in the map, so any existing handle to the freed element
     // will not compare equal anymore (and thus will not be considered to point to a valid Entity).
     handleKey.advanceGeneration();
+
     // Important: the handle with advanced generation is stord in the free list
     // because this is the handle that will be returned by an `addEntity()` re-using it.
     mFreedHandles.push_back(handleKey);
@@ -155,6 +161,23 @@ void EntityManager::restoreState(const State & aState)
     assert(aState.mState != nullptr); // the default constructed
     mState = std::make_unique<InternalState>();
     *mState = *aState.mState;
+}
+
+void EntityManager::forEachHandle(std::function<void(Handle<Entity>, const char *)> aCallback)
+{
+    mState->forEachHandle(std::move(aCallback), *this);
+}
+
+void EntityManager::InternalState::forEachHandle(std::function<void(Handle<Entity>, const char *)> aCallback, EntityManager & aManager)
+{
+    for (auto & [key, record] : mHandleMap)
+    {
+        Handle<Entity> handle(key, aManager);
+        if (std::find(mFreedHandles.begin(), mFreedHandles.end(), key) == mFreedHandles.end())
+        {
+            aCallback(handle, record.mNamePtr->c_str());
+        }
+    }
 }
 
 

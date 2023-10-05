@@ -51,6 +51,7 @@ struct EntityRecord
 {
     HandleKey<Archetype> mArchetype;
     EntityIndex mIndex; // Index of this Entity in (each store of) the Archetype.
+    std::shared_ptr<std::string> mNamePtr;
 };
 
 
@@ -101,6 +102,8 @@ public:
 
     template <class T_component>
     T_component & get();
+
+    const char * name();
 
 private:
     EntityReference mReference;
@@ -194,6 +197,8 @@ public:
     {
         return mKey;
     }
+
+    const char * name() const;
 
 private:
     Handle(HandleKey<Entity> aKey, EntityManager & aManager) :
