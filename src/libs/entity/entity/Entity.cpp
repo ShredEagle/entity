@@ -25,6 +25,11 @@ void Entity::erase()
         });
 }
 
+const char * Handle<Entity>::name() const
+{
+    return mManager->name(mKey);
+}
+
 
 Archetype & Handle<Archetype>::get()
 {

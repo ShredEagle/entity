@@ -9,10 +9,12 @@
 #include "detail/QueryBackend.h"
 
 #include <algorithm>
+#include <cstdio>
 #include <deque>
 #include <map>
 
 #include <cstddef>
+#include <sstream>
 
 
 namespace ad {
@@ -39,7 +41,7 @@ class EntityManager
         friend class Inspector;
 
     public:
-        Handle<Entity> addEntity(EntityManager & aManager);
+        Handle<Entity> addEntity(EntityManager & aManager, const char * aName);
 
         std::size_t countLiveEntities() const;
 
@@ -61,6 +63,8 @@ class EntityManager
 
         Archetype & archetype(HandleKey<Archetype> aHandle);
 
+        const char * name(HandleKey<Entity> aHandle) const;
+
         void freeHandle(HandleKey<Entity> aKey);
 
         template <class... VT_components>
@@ -70,6 +74,8 @@ class EntityManager
         detail::QueryBackend<VT_components...> * queryBackend(TypeSequence aQueryType);
 
         std::set<detail::QueryBackendBase *> getQueryBackendSet(const Archetype & aArchetype) const;
+
+        void forEachHandle(std::function<void(Handle<Entity>, const char *)> aCallback, EntityManager & aManager);
 
         // TODO This could be massively optimized by keeping a graph of transformations on the
         // archetypes, and storing the backend difference along the edges.
@@ -111,8 +117,8 @@ public:
     // because this operation is not deferred (so parallel jobs could be doing it concurrently)
     // An idea to evaluate: could it be lock-free via read-modify-write?
     // see: https://preshing.com/20120612/an-introduction-to-lock-free-programming/
-    Handle<Entity> addEntity()
-    { return mState->addEntity(*this); }
+    Handle<Entity> addEntity(const char * aName = "Entity")
+    { return mState->addEntity(*this, aName); }
 
     std::size_t countLiveEntities() const
     { return mState->countLiveEntities(); }
@@ -120,6 +126,10 @@ public:
     /// \note: Not const, since it actually re-allocate the internal state
     State saveState();
     void restoreState(const State & aState);
+
+    // \note: For debug purpose we need a way to access all currently valid
+    // handles
+    void forEachHandle(std::function<void(Handle<Entity>, const char *)> aCallback);
 
 private:
     // Forward all externally used methods to state, so the state struct is hidden
@@ -142,6 +152,9 @@ private:
 
     Archetype & archetype(HandleKey<Archetype> aHandle)
     { return mState->archetype(aHandle); }
+
+    const char * name(HandleKey<Entity> aHandle) const
+    { return mState->name(aHandle); }
 
     void freeHandle(HandleKey<Entity> aKey)
     { return mState->freeHandle(aKey); }
@@ -211,6 +224,7 @@ void Handle<Entity>::add(T_component aComponent)
     EntityRecord newRecord{
         .mArchetype = targetArchetypeKey,
         .mIndex = newIndex,
+        .mNamePtr = initialRecord.mNamePtr,
     };
 
     // TODO ideally, we get rid of this test, so the implementations is as fast as possible
@@ -248,7 +262,7 @@ void Handle<Entity>::add(T_component aComponent)
         addedQuery->signalEntityAdded(*this, newRecord);
     }
 
-#if defined(ENTITY_SANTIZE)
+#if defined(ENTITY_SANITIZE)
     assert(initialArchetype.verifyHandlesConsistency(*mManager));
     assert(targetArchetype.verifyHandlesConsistency(*mManager));
 #endif
@@ -285,6 +299,7 @@ void Handle<Entity>::remove()
         EntityRecord newRecord{
             .mArchetype = targetArchetypeKey,
             .mIndex = newIndex,
+            .mNamePtr = initialRecord.mNamePtr,
         };
         updateRecord(newRecord);
     }
@@ -302,24 +317,29 @@ void Handle<Entity>::remove()
         //assert(false);
     }
 
-#if defined(ENTITY_SANTIZE)
+#if defined(ENTITY_SANITIZE)
     assert(initialArchetype.verifyHandlesConsistency(*mManager));
     assert(targetArchetype.verifyHandlesConsistency(*mManager));
 #endif
 }
 
 
-inline Handle<Entity> EntityManager::InternalState::addEntity(EntityManager & aManager)
+inline Handle<Entity> EntityManager::InternalState::addEntity(EntityManager & aManager, const char * aName)
 {
     // We know the empty archetype is first in the vector
     std::pair<Archetype &, HandleKey<Archetype>> emptyArchetype =  mArchetypes.getEmptyArchetype();
 
     HandleKey<Entity> key = getAvailableHandle();
+
+    std::stringstream name;
+    name << aName << " " << (size_t)key;
+
     mHandleMap.insert_or_assign(
         key,
         EntityRecord{
             emptyArchetype.second,
             emptyArchetype.first.countEntities(),
+            std::make_shared<std::string>(name.str()),
         });
 
     // Has to be done after taking the entity count as index, for the new EntityRecord.

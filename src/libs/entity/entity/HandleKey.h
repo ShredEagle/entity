@@ -59,6 +59,8 @@ public:
 
     constexpr bool operator==(const HandleKey & aRhs) const = default;
 
+    //TODO: too dangerous !!! because things like "this | 23" removes the generation
+    // data from the result (meaning that type coercion might remove the generation from the handle key)
     /// \brief Return the index value (discarding the generation).
     /*implicit: for array access*/ constexpr operator Underlying_t () const
     { return mGenerationAndIndex & gIndexMask; }
