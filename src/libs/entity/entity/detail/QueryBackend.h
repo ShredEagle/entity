@@ -4,6 +4,8 @@
 #include "HandledStore.h"
 #include "Invoker.h"
 
+#include <entity/Component.h>
+#include <entity/Blueprint.h>
 #include <entity/Archetype.h>
 #include <entity/ArchetypeStore.h>
 #include <entity/Entity.h>
@@ -208,7 +210,7 @@ void QueryBackend<VT_components...>::pushIfMatches(const TypeSet & aCandidateTyp
                                                    const ArchetypeStore & aStore)
 {
     if(std::includes(aCandidateTypeSet.begin(), aCandidateTypeSet.end(),
-                     GetTypeSet().begin(), GetTypeSet().end()))
+                     GetTypeSet().begin(), GetTypeSet().end()) && std::find(aCandidateTypeSet.begin(), aCandidateTypeSet.end(), getId<Blueprint>()) == aCandidateTypeSet.end())
     {
         mMatchingArchetypes.emplace_back(aCandidate, aStore);
     }

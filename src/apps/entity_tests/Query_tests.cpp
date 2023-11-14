@@ -3,6 +3,7 @@
 #include "Components_helpers.h"
 
 #include <entity/Entity.h>
+#include <entity/Blueprint.h>
 #include <entity/EntityManager.h>
 #include <entity/Query.h>
 
@@ -538,6 +539,63 @@ SCENARIO("Queries on multiple components.")
                     REQUIRE(qAB.countMatches() == 0);
                     REQUIRE(qAC.countMatches() == 0);
                     REQUIRE(qABC.countMatches() == 0);
+                }
+            }
+        }
+    }
+}
+
+SCENARIO("Queries on archetype where some entity are blueprints.")
+{
+    GIVEN("An entity manager with 2 entities.")
+    {
+        EntityManager world;
+        std::array<Handle<Entity>, 3> entities{
+            world.addEntity(),
+            world.addEntity(),
+        };
+
+        GIVEN("Queries on (A)")
+        {
+            using A = ComponentA;
+
+            Query<A>        qA{world};
+
+            THEN("Initially the queries match no entites.")
+            {
+                REQUIRE(qA.countMatches() == 0);
+            }
+
+            WHEN("A component (A) is added on each entity.")
+            {
+                const double a[] = {
+                    10.,
+                    100.,
+                    0.25,
+                };
+
+                {
+                    Phase phase;
+                    entities[0].get(phase)->add<ComponentA>({a[0]});
+                    entities[1].get(phase)->add<ComponentA>({a[1]});
+                }
+
+                THEN("query (A) contains 2 entities.")
+                {
+                    REQUIRE(qA.countMatches() == 2);
+                }
+
+                WHEN("An blueprint component is added to an entity")
+                {
+                    {
+                        Phase phase;
+                        entities[1].get(phase)->add<Blueprint>({});
+                    }
+
+                    THEN("query (A) contains 1")
+                    {
+                        REQUIRE(qA.countMatches() == 1);
+                    }
                 }
             }
         }
