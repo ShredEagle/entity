@@ -41,6 +41,8 @@ public:
     virtual std::unique_ptr<StorageBase> clone() const = 0;
     /// \brief Move data from aSource, pushing it a the back of this storage.
     virtual void moveFrom(EntityIndex aSourceIndex, StorageBase & aSource) = 0;
+    /// \brief Copy data from aSource, pushing it a the back of this storage.
+    virtual void copyFrom(EntityIndex aSourceIndex, StorageBase & aSource) = 0;
 
     virtual void remove(EntityIndex aSourceIndex) = 0;
 
@@ -82,6 +84,9 @@ public:
     // Archetype::remove() will take care of that removal.
     void moveFrom(EntityIndex aSourceIndex, StorageBase & aSource) override
     { mArray.push_back(std::move(aSource.get<T_component>(aSourceIndex))); }
+
+    void copyFrom(EntityIndex aSourceIndex, StorageBase & aSource) override
+    { mArray.push_back(T_component{aSource.get<T_component>(aSourceIndex)}); }
 
     void remove(EntityIndex aSourceIndex) override;
 
@@ -165,6 +170,8 @@ public:
     template <class T_component>
     std::unique_ptr<Archetype> makeRestricted() const;
 
+    std::unique_ptr<Archetype> makeRestrictedFromTypeId(const ComponentId aId) const;
+
     std::size_t countEntities() const;
 
     template <class T_component>
@@ -193,6 +200,8 @@ public:
               Archetype & aDestination,
               EntityManager & aManager);
 
+    void copy(EntityIndex aSourceEntityIndex, HandleKey<Entity> aDestHandle, Archetype & aDestination, EntityManager & aManager);
+
     template <class T_component>
     EntityIndex push(T_component aComponent);
 
@@ -215,6 +224,16 @@ public:
 #endif
 
 private:
+    enum class Operation
+    {
+      Move,
+      Copy,
+    };
+
+    /// \brief base template for archetype copy and move
+    template<Operation N_operation>
+    void moveOrCopy(EntityIndex aSourceEntityIndex, Archetype & aDestination, EntityManager & aManager);
+
     /// \brief Intended for tests, makes sure that each store size matche the count of handles.
     bool checkStoreSize() const;
 
@@ -308,22 +327,8 @@ template <class T_component>
 std::unique_ptr<Archetype> Archetype::makeRestricted() const
 {
     ComponentId retired = getId<T_component>();
-
-    auto result = std::make_unique<Archetype>();
-    result->mType = mType;
-    std::erase(result->mType, retired);
-
-    for (const auto & store : mStores)
-    {
-        if(store->getType() != retired)
-        {
-            result->mStores.push_back(store->cloneEmpty());
-        }
-    }
-
-    return result;
+    return makeRestrictedFromTypeId(retired);
 }
-
 
 template <class T_component>
 bool Archetype::has() const
@@ -387,6 +392,46 @@ template <class T_component>
 Storage<T_component> & Archetype::getStorage(StorageIndex<T_component> aComponentIndex)
 {
     return mStores[aComponentIndex]->template as<T_component>();
+}
+
+template<Archetype::Operation N_operation>
+void Archetype::moveOrCopy(EntityIndex aSourceEntityIndex, Archetype & aDestination, EntityManager & aManager)
+{
+#if defined(ENTITY_SANITIZE)
+    // If one of the archetypes is currently under iteration via Query::each(),
+    // the iterated containers would be modified during the iteration, which is an error.
+    assert(this->mCurrentQueryIterations == 0);
+    assert(aDestination.mCurrentQueryIterations == 0);
+#endif
+
+    // Move the matching components from the stores of `this` archetype to the destination stores.
+    for(std::size_t sourceStoreId = 0;
+        sourceStoreId != mType.size();
+        ++sourceStoreId)
+    {
+        for(std::size_t destinationStoreId = 0; 
+            destinationStoreId != aDestination.mType.size();
+            ++destinationStoreId)
+        {
+            // Found matching components, move-push from source at the back of destination
+            if(mType[sourceStoreId] == aDestination.mType[destinationStoreId])
+            {
+                if constexpr (N_operation == Operation::Move)
+                {
+                    aDestination.mStores[destinationStoreId]
+                        ->moveFrom(aSourceEntityIndex, *mStores[sourceStoreId]);
+                    break; // Once the matching destination store has been found, go to next source store.
+
+                }
+                else if constexpr (N_operation == Operation::Copy)
+                {
+                        aDestination.mStores[destinationStoreId]
+                            ->copyFrom(aSourceEntityIndex, *mStores[sourceStoreId]);
+                        break; // Once the matching destination store has been found, go to next source store.
+                }
+            }
+        }
+    }
 }
 
 

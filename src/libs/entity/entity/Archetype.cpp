@@ -1,6 +1,7 @@
 #include "Archetype.h"
 #include "Component.h"
 #include "EntityManager.h"
+#include "HandleKey.h"
 
 
 namespace ad {
@@ -104,37 +105,21 @@ bool Archetype::verifyStoresConsistency()
 
 void Archetype::move(std::size_t aEntityIndex, Archetype & aDestination, EntityManager & aManager)
 {
-#if defined(ENTITY_SANITIZE)
-    // If one of the archetypes is currently under iteration via Query::each(),
-    // the iterated containers would be modified during the iteration, which is an error.
-    assert(this->mCurrentQueryIterations == 0);
-    assert(aDestination.mCurrentQueryIterations == 0);
-#endif
+    moveOrCopy<Operation::Move>(aEntityIndex, aDestination, aManager);
 
-    // Move the matching components from the stores of `this` archetype to the destination stores.
-    for(std::size_t sourceStoreId = 0;
-        sourceStoreId != mType.size();
-        ++sourceStoreId)
-    {
-        for(std::size_t destinationStoreId = 0; 
-            destinationStoreId != aDestination.mType.size();
-            ++destinationStoreId)
-        {
-            // Found matching components, move-push from source at the back of destination
-            if(mType[sourceStoreId] == aDestination.mType[destinationStoreId])
-            {
-                aDestination.mStores[destinationStoreId]
-                    ->moveFrom(aEntityIndex, *mStores[sourceStoreId]);
-                break; // Once the matching destination store has been found, go to next source store.
-            }
-        }
-    }
     // Copy the HandleKey for the moved entity.
     aDestination.mHandles.push_back(mHandles[aEntityIndex]);
 
     remove(aEntityIndex, aManager);
 }
 
+void Archetype::copy(EntityIndex aSourceEntityIndex, HandleKey<Entity> aDestHandle, Archetype & aDestination, EntityManager & aManager)
+{
+    moveOrCopy<Operation::Copy>(aSourceEntityIndex, aDestination, aManager);
+    //
+    // Copy the HandleKey for the moved entity.
+    aDestination.mHandles.push_back(aDestHandle);
+}
 
 void Archetype::remove(EntityIndex aEntityIndex, EntityManager & aManager)
 {
@@ -170,6 +155,23 @@ void Archetype::pushKey(HandleKey<Entity> aKey)
     assert(mCurrentQueryIterations == 0);
 #endif
     mHandles.push_back(aKey); 
+}
+
+std::unique_ptr<Archetype> Archetype::makeRestrictedFromTypeId(const ComponentId aId) const
+{
+    auto result = std::make_unique<Archetype>();
+    result->mType = mType;
+    std::erase(result->mType, aId);
+
+    for (const auto & store : mStores)
+    {
+        if(store->getType() != aId)
+        {
+            result->mStores.push_back(store->cloneEmpty());
+        }
+    }
+
+    return result;
 }
 
 

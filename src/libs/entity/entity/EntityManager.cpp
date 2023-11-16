@@ -1,13 +1,50 @@
 #include "EntityManager.h"
 
 #include "Component.h"
+#include "Archetype.h"
+#include "Blueprint.h"
 
+#include <cassert>
 #include <iterator>
 
 
 namespace ad {
 namespace ent {
 
+Handle<Entity> EntityManager::createFromBlueprint(Handle<Entity> aBlueprint, const char * aName)
+{
+    assert(aBlueprint.isValid());
+
+    auto newHandle = addEntity(aName);
+    Archetype & initialArchetype = archetype(newHandle.record().mArchetype);
+    Archetype & blueprintArchetype = aBlueprint.archetype();
+    HandleKey<Archetype> newArchKey = restrictArchetype<Blueprint>(blueprintArchetype);
+    Archetype & newArchetype = archetype(newArchKey);
+    EntityIndex newIndex = newArchetype.countEntities();
+
+    blueprintArchetype.copy(aBlueprint.id(), newHandle.mKey, archetype(newArchKey), *this);
+
+    EntityRecord newRecord{
+        .mArchetype = newArchKey,
+        .mIndex = newIndex,
+        .mNamePtr = newHandle.record().mNamePtr,
+    };
+    newHandle.updateRecord(newRecord);
+
+    auto addedBackends = getExtraQueryBackends(newArchetype, initialArchetype);
+    for (const auto & addedQuery : addedBackends)
+    {
+        // We should not pass there if this is a redundant add().
+        addedQuery->signalEntityAdded(newHandle, newRecord);
+    }
+
+#if defined(ENTITY_SANITIZE)
+    assert(initialArchetype.verifyHandlesConsistency(*mManager));
+    assert(newArchetype.verifyHandlesConsistency(*mManager));
+#endif
+
+    return newHandle;
+}
 
 EntityManager & EntityManager::getEmptyHandleEntityManager()
 {
