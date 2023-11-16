@@ -25,6 +25,9 @@ template <class T_component>
 
 // TODO A constexpr datastructure would allow some optimizations.
 // (such as not storing the query type set in a static data member.)
+// HOTTAKE with the size of typeset we deal with it is probably 
+// faster to use a vector for typeset with the proper add
+// and remove operation
 /// \brief Ordered set of ComponentIds.
 /// Being ordered, the TypeSet value does not depend on the order the components are provided.
 using TypeSet = std::set<ComponentId>;
