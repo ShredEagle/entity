@@ -16,10 +16,9 @@ SCENARIO("Creating a entity from a blueprint")
     GIVEN("An entity manager with a blueprint and an entity created from a blueprint")
     {
         EntityManager world;
-        Handle<Entity> h1 = world.addEntity();
+        Handle<Entity> h1 = world.addBlueprint();
         {
             Phase phase;
-            h1.get(phase)->add<Blueprint>({});
             h1.get(phase)->add<ComponentA>({1.0});
         }
 
