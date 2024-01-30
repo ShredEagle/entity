@@ -8,7 +8,7 @@ on:
 
 jobs:
   build:
-    uses: shredeagle/reusable-workflows/.github/workflows/main_build.yml@v2.5.1
+    uses: shredeagle/reusable-workflows/.github/workflows/main_build.yml@v2.6.0
     with:
       deployrecipe_userchannel: adnn/develop
     secrets:
