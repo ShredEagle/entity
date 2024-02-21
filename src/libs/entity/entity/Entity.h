@@ -3,6 +3,7 @@
 
 #include "Archetype.h"
 #include "HandleKey.h"
+#include "entity/Component.h"
 
 #include <functional>
 #include <mutex>
@@ -199,6 +200,8 @@ public:
     }
 
     const char * name() const;
+
+    const TypeSet getComponentsInfo() const;
 
 private:
     Handle(HandleKey<Entity> aKey, EntityManager & aManager) :

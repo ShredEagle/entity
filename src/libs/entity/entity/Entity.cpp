@@ -30,6 +30,10 @@ const char * Handle<Entity>::name() const
     return mManager->name(mKey);
 }
 
+const TypeSet Handle<Entity>::getComponentsInfo() const
+{
+    return archetype().getTypeSet();
+}
 
 Archetype & Handle<Archetype>::get()
 {
