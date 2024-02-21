@@ -291,3 +291,12 @@ T_component & Entity_view::get()
 
 } // namespace ent
 } // namespace ad
+
+template<>
+struct std::hash<ad::ent::Handle<ad::ent::Entity>>
+{
+    std::size_t operator()(const ad::ent::Handle<ad::ent::Entity> aHandle) const noexcept
+    {
+        return std::hash<ad::ent::EntityIndex>{}(aHandle.id());
+    }
+};
