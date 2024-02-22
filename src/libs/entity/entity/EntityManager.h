@@ -120,6 +120,15 @@ public:
     Handle<Entity> addEntity(const char * aName = "Entity")
     { return mState->addEntity(*this, aName); }
 
+    Handle<Entity> addBlueprint(const char * aName = "Entity")
+    {
+      auto handle = mState->addEntity(*this, aName);
+      handle.add(Blueprint{});
+      return handle;
+    }
+
+    Handle<Entity> createFromBlueprint(Handle<Entity> aBlueprint, const char * aName);
+
     std::size_t countLiveEntities() const
     { return mState->countLiveEntities(); }
 

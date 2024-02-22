@@ -10,6 +10,7 @@ set(${TARGET_NAME}_HEADERS
     Query.h
     QueryStore.h
     Wrap.h
+    Blueprint.h
 
     detail/CloningPointer.h
     detail/HandledStore.h
