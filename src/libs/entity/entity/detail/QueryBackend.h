@@ -210,7 +210,12 @@ void QueryBackend<VT_components...>::pushIfMatches(const TypeSet & aCandidateTyp
                                                    const ArchetypeStore & aStore)
 {
     if(std::includes(aCandidateTypeSet.begin(), aCandidateTypeSet.end(),
-                     GetTypeSet().begin(), GetTypeSet().end()) && std::find(aCandidateTypeSet.begin(), aCandidateTypeSet.end(), getId<Blueprint>()) == aCandidateTypeSet.end())
+                     GetTypeSet().begin(), GetTypeSet().end()) &&
+                     std::find(
+                         aCandidateTypeSet.begin(),
+                         aCandidateTypeSet.end(),
+                         getId<Blueprint>()
+                     ) == aCandidateTypeSet.end())
     {
         mMatchingArchetypes.emplace_back(aCandidate, aStore);
     }
