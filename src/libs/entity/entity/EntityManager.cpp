@@ -4,8 +4,8 @@
 #include "Archetype.h"
 #include "Blueprint.h"
 
-#include <cassert>
 #include <iterator>
+#include <cassert>
 
 
 namespace ad {
