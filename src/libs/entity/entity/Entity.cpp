@@ -25,12 +25,22 @@ void Entity::erase()
         });
 }
 
+void Entity::copy(Handle<Entity> aHandle)
+{
+    mPhase.append(
+        [handle = mHandle, newHandle = aHandle] () mutable
+        {
+            handle.copy(newHandle);
+        });
+}
+
+
 const char * Handle<Entity>::name() const
 {
     return mManager->name(mKey);
 }
 
-const TypeSet Handle<Entity>::getComponentsInfo() const
+const TypeSet Handle<Entity>::getTypeSet() const
 {
     return archetype().getTypeSet();
 }
@@ -54,6 +64,13 @@ bool Handle<Entity>::isValid() const
     // Compare against mKey (which inlcudes the generation), not ::id()
     return mManager->keyForIndex(mKey) == mKey;
 }
+
+void Handle<Entity>::copy(Handle<Entity> aHandle)
+{
+    aHandle.archetype().copy(
+        aHandle.record().mIndex, aHandle.mKey, archetype(), *mManager);
+}
+
 
 
 std::optional<Entity_view> Handle<Entity>::get() const

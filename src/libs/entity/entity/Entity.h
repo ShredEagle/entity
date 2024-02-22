@@ -127,6 +127,8 @@ public:
     template <class T_component>
     Entity & remove();
 
+    void copy(Handle<Entity> aHandle);
+
     /// \brief Remove the entity itself from the EntityManager.
     void erase();
 
@@ -201,7 +203,7 @@ public:
 
     const char * name() const;
 
-    const TypeSet getComponentsInfo() const;
+    const TypeSet getTypeSet() const;
 
 private:
     Handle(HandleKey<Entity> aKey, EntityManager & aManager) :
@@ -211,6 +213,7 @@ private:
 
     template <class T_component>
     void add(T_component aComponent);
+    void copy(Handle<Entity> aHandle);
 
     // TODO emplace() which construct the components by forwarding arguments.
 

@@ -103,6 +103,47 @@ bool Archetype::verifyStoresConsistency()
 }
 
 
+template<Archetype::Operation N_operation>
+void Archetype::moveOrCopy(EntityIndex aSourceEntityIndex, Archetype & aDestination, EntityManager & aManager)
+{
+#if defined(ENTITY_SANITIZE)
+    // If one of the archetypes is currently under iteration via Query::each(),
+    // the iterated containers would be modified during the iteration, which is an error.
+    assert(this->mCurrentQueryIterations == 0);
+    assert(aDestination.mCurrentQueryIterations == 0);
+#endif
+
+    // Move the matching components from the stores of `this` archetype to the destination stores.
+    for(std::size_t sourceStoreId = 0;
+        sourceStoreId != mType.size();
+        ++sourceStoreId)
+    {
+        for(std::size_t destinationStoreId = 0; 
+            destinationStoreId != aDestination.mType.size();
+            ++destinationStoreId)
+        {
+            // Found matching components, move-push from source at the back of destination
+            if(mType[sourceStoreId] == aDestination.mType[destinationStoreId])
+            {
+                if constexpr (N_operation == Operation::Move)
+                {
+                    aDestination.mStores[destinationStoreId]
+                        ->moveFrom(aSourceEntityIndex, *mStores[sourceStoreId]);
+                    break; // Once the matching destination store has been found, go to next source store.
+
+                }
+                else if constexpr (N_operation == Operation::Copy)
+                {
+                        aDestination.mStores[destinationStoreId]
+                            ->copyFrom(aSourceEntityIndex, *mStores[sourceStoreId]);
+                        break; // Once the matching destination store has been found, go to next source store.
+                }
+            }
+        }
+    }
+}
+
+
 void Archetype::move(std::size_t aEntityIndex, Archetype & aDestination, EntityManager & aManager)
 {
     moveOrCopy<Operation::Move>(aEntityIndex, aDestination, aManager);

@@ -14,34 +14,12 @@ namespace ent {
 Handle<Entity> EntityManager::createFromBlueprint(Handle<Entity> aBlueprint, const char * aName)
 {
     assert(aBlueprint.isValid());
+    Phase blueprint;
 
     auto newHandle = addEntity(aName);
-    Archetype & initialArchetype = archetype(newHandle.record().mArchetype);
-    Archetype & blueprintArchetype = aBlueprint.archetype();
-    HandleKey<Archetype> newArchKey = restrictArchetype<Blueprint>(blueprintArchetype);
-    Archetype & newArchetype = archetype(newArchKey);
-    EntityIndex newIndex = newArchetype.countEntities();
 
-    blueprintArchetype.copy(aBlueprint.id(), newHandle.mKey, archetype(newArchKey), *this);
-
-    EntityRecord newRecord{
-        .mArchetype = newArchKey,
-        .mIndex = newIndex,
-        .mNamePtr = newHandle.record().mNamePtr,
-    };
-    newHandle.updateRecord(newRecord);
-
-    auto addedBackends = getExtraQueryBackends(newArchetype, initialArchetype);
-    for (const auto & addedQuery : addedBackends)
-    {
-        // We should not pass there if this is a redundant add().
-        addedQuery->signalEntityAdded(newHandle, newRecord);
-    }
-
-#if defined(ENTITY_SANITIZE)
-    assert(initialArchetype.verifyHandlesConsistency(*mManager));
-    assert(newArchetype.verifyHandlesConsistency(*mManager));
-#endif
+    aBlueprint.get(blueprint)->copy(newHandle);
+    newHandle.get(blueprint)->remove<Blueprint>();
 
     return newHandle;
 }
