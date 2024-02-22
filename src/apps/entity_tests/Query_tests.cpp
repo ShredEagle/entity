@@ -550,7 +550,7 @@ SCENARIO("Queries on archetype where some entity are blueprints.")
     GIVEN("An entity manager with 2 entities.")
     {
         EntityManager world;
-        std::array<Handle<Entity>, 3> entities{
+        std::array<Handle<Entity>, 2> entities{
             world.addEntity(),
             world.addEntity(),
         };
@@ -571,7 +571,6 @@ SCENARIO("Queries on archetype where some entity are blueprints.")
                 const double a[] = {
                     10.,
                     100.,
-                    0.25,
                 };
 
                 {
@@ -585,7 +584,7 @@ SCENARIO("Queries on archetype where some entity are blueprints.")
                     REQUIRE(qA.countMatches() == 2);
                 }
 
-                WHEN("An blueprint component is added to an entity")
+                WHEN("A blueprint component is added to an entity")
                 {
                     {
                         Phase phase;
