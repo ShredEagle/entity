@@ -22,7 +22,7 @@ class EntityConan(ConanFile):
     }
 
     requires = (
-        ("handy/6b4b83f370@adnn/develop"),
+        ("handy/15a1bb8eaa@adnn/develop"),
     )
 
     # Note: It seems conventionnal to add CMake build requirement
