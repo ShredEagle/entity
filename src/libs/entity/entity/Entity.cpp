@@ -28,9 +28,9 @@ void Entity::erase()
 void Entity::copy(Handle<Entity> aHandle)
 {
     mPhase.append(
-        [handle = mHandle, newHandle = aHandle] () mutable
+        [handle = mHandle, otherHandle = aHandle] () mutable
         {
-            handle.copy(newHandle);
+            handle.copy(otherHandle);
         });
 }
 
@@ -67,8 +67,24 @@ bool Handle<Entity>::isValid() const
 
 void Handle<Entity>::copy(Handle<Entity> aHandle)
 {
-    aHandle.archetype().copy(
-        aHandle.record().mIndex, aHandle.mKey, archetype(), *mManager);
+    auto & sourceHandle = *this;
+    auto & destHandle = aHandle;
+
+    assert(sourceHandle.record().mArchetype != destHandle.record().mArchetype);
+
+    Archetype & targetArchetype = mManager->archetype(sourceHandle.record().mArchetype);
+    EntityIndex newIndex = targetArchetype.countEntities();
+
+    sourceHandle.archetype().copy(
+        sourceHandle.record().mIndex, sourceHandle.mKey, targetArchetype, *mManager);
+
+    EntityRecord newRecord{
+        .mArchetype = sourceHandle.record().mArchetype,
+        .mIndex = newIndex,
+        .mNamePtr = destHandle.record().mNamePtr,
+    };
+
+    destHandle.updateRecord(newRecord);
 }
 
 

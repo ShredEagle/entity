@@ -36,10 +36,7 @@ SCENARIO("Creating a entity from a blueprint")
             WHEN("Creating a entity from a blueprint")
             {
                 Handle<Entity> h2;
-                {
-                    Phase modify;
-                    h2 = world.createFromBlueprint(h1, "hello");
-                }
+                h2 = world.createFromBlueprint(h1, "hello");
 
                 THEN("The entity has the same component as the blueprint")
                 {

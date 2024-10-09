@@ -4,6 +4,7 @@
 #include "Archetype.h"
 #include "Blueprint.h"
 
+#include <cstdio>
 #include <iterator>
 #include <cassert>
 
@@ -14,12 +15,15 @@ namespace ent {
 Handle<Entity> EntityManager::createFromBlueprint(Handle<Entity> aBlueprint, const char * aName)
 {
     assert(aBlueprint.isValid());
-    Phase blueprint;
-
     auto newHandle = addEntity(aName);
-
-    aBlueprint.get(blueprint)->copy(newHandle);
-    newHandle.get(blueprint)->remove<Blueprint>();
+    {
+        Phase blueprint;
+        aBlueprint.get(blueprint)->copy(newHandle);
+    }
+    {
+        Phase removeBlueprint;
+        newHandle.get(removeBlueprint)->remove<Blueprint>();
+    }
 
     return newHandle;
 }
