@@ -41,6 +41,8 @@ public:
     virtual std::unique_ptr<StorageBase> clone() const = 0;
     /// \brief Move data from aSource, pushing it a the back of this storage.
     virtual void moveFrom(EntityIndex aSourceIndex, StorageBase & aSource) = 0;
+    /// \brief Copy data from aSource, pushing it a the back of this storage.
+    virtual void copyFrom(EntityIndex aSourceIndex, StorageBase & aSource) = 0;
 
     virtual void remove(EntityIndex aSourceIndex) = 0;
 
@@ -82,6 +84,9 @@ public:
     // Archetype::remove() will take care of that removal.
     void moveFrom(EntityIndex aSourceIndex, StorageBase & aSource) override
     { mArray.push_back(std::move(aSource.get<T_component>(aSourceIndex))); }
+
+    void copyFrom(EntityIndex aSourceIndex, StorageBase & aSource) override
+    { mArray.push_back(T_component{aSource.get<T_component>(aSourceIndex)}); }
 
     void remove(EntityIndex aSourceIndex) override;
 
@@ -193,6 +198,8 @@ public:
               Archetype & aDestination,
               EntityManager & aManager);
 
+    void copy(EntityIndex aSourceEntityIndex, HandleKey<Entity> aDestHandle, Archetype & aDestination, EntityManager & aManager);
+
     template <class T_component>
     EntityIndex push(T_component aComponent);
 
@@ -215,6 +222,19 @@ public:
 #endif
 
 private:
+    enum class Operation
+    {
+      Move,
+      Copy,
+    };
+
+    /// \brief base template for archetype copy and move
+    template<Operation N_operation>
+    void moveOrCopy(EntityIndex aSourceEntityIndex, Archetype & aDestination, EntityManager & aManager);
+
+    std::unique_ptr<Archetype> makeRestrictedFromTypeId(const ComponentId aId) const;
+
+
     /// \brief Intended for tests, makes sure that each store size matche the count of handles.
     bool checkStoreSize() const;
 
@@ -308,22 +328,8 @@ template <class T_component>
 std::unique_ptr<Archetype> Archetype::makeRestricted() const
 {
     ComponentId retired = getId<T_component>();
-
-    auto result = std::make_unique<Archetype>();
-    result->mType = mType;
-    std::erase(result->mType, retired);
-
-    for (const auto & store : mStores)
-    {
-        if(store->getType() != retired)
-        {
-            result->mStores.push_back(store->cloneEmpty());
-        }
-    }
-
-    return result;
+    return makeRestrictedFromTypeId(retired);
 }
-
 
 template <class T_component>
 bool Archetype::has() const
@@ -388,7 +394,6 @@ Storage<T_component> & Archetype::getStorage(StorageIndex<T_component> aComponen
 {
     return mStores[aComponentIndex]->template as<T_component>();
 }
-
 
 } // namespace ent
 } // namespace ad

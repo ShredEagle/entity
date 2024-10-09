@@ -1,13 +1,28 @@
 #include "EntityManager.h"
 
 #include "Component.h"
+#include "Archetype.h"
+#include "Blueprint.h"
 
 #include <iterator>
+#include <cassert>
 
 
 namespace ad {
 namespace ent {
 
+Handle<Entity> EntityManager::createFromBlueprint(Handle<Entity> aBlueprint, const char * aName)
+{
+    assert(aBlueprint.isValid());
+    Phase blueprint;
+
+    auto newHandle = addEntity(aName);
+
+    aBlueprint.get(blueprint)->copy(newHandle);
+    newHandle.get(blueprint)->remove<Blueprint>();
+
+    return newHandle;
+}
 
 EntityManager & EntityManager::getEmptyHandleEntityManager()
 {

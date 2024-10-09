@@ -3,6 +3,7 @@
 
 #include "Archetype.h"
 #include "HandleKey.h"
+#include "entity/Component.h"
 
 #include <functional>
 #include <mutex>
@@ -126,6 +127,8 @@ public:
     template <class T_component>
     Entity & remove();
 
+    void copy(Handle<Entity> aHandle);
+
     /// \brief Remove the entity itself from the EntityManager.
     void erase();
 
@@ -200,6 +203,8 @@ public:
 
     const char * name() const;
 
+    const TypeSet getTypeSet() const;
+
 private:
     Handle(HandleKey<Entity> aKey, EntityManager & aManager) :
         mKey{aKey},
@@ -208,6 +213,7 @@ private:
 
     template <class T_component>
     void add(T_component aComponent);
+    void copy(Handle<Entity> aHandle);
 
     // TODO emplace() which construct the components by forwarding arguments.
 
@@ -288,3 +294,12 @@ T_component & Entity_view::get()
 
 } // namespace ent
 } // namespace ad
+
+template<>
+struct std::hash<ad::ent::Handle<ad::ent::Entity>>
+{
+    std::size_t operator()(const ad::ent::Handle<ad::ent::Entity> aHandle) const noexcept
+    {
+        return std::hash<ad::ent::EntityIndex>{}(aHandle.id());
+    }
+};
