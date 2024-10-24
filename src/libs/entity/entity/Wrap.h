@@ -26,8 +26,8 @@ class Wrap
 {
 public:
     template <class... VT_ctorArgs>
-    Wrap(EntityManager & aWorld, VT_ctorArgs &&... aCtorArgs) :
-        mWrapped{aWorld.addEntity()}
+    Wrap(EntityManager & aWorld, const char * aName, VT_ctorArgs &&... aCtorArgs) :
+        mWrapped{aWorld.addEntity(aName)}
     {
         // Note: one drawback is that we make one phase per initialized handle.
         // If we were doing it manually, we could share one init phase among several stores.
@@ -37,12 +37,12 @@ public:
         if constexpr(requires {T_stored{aWorld, std::forward<VT_ctorArgs>(aCtorArgs)...};})
         {
             // TODO #emplace, emplace when entity offers it
-            mWrapped.get(init)->add(T_stored{aWorld, std::forward<VT_ctorArgs>(aCtorArgs)...});
+            mWrapped.get(init)->add(T_stored(aWorld, std::forward<VT_ctorArgs>(aCtorArgs)...));
         }
         // Otherwise, call a construction expression only providing the variadic arguments.
         else
         {
-            mWrapped.get(init)->add(T_stored{std::forward<VT_ctorArgs>(aCtorArgs)...});
+            mWrapped.get(init)->add(T_stored(std::forward<VT_ctorArgs>(aCtorArgs)...));
         }
     }
 
@@ -79,7 +79,7 @@ private:
     }
 
 
-    Handle<Entity> mWrapped;
+    mutable Handle<Entity> mWrapped;
 };
 
 

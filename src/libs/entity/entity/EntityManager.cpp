@@ -79,6 +79,18 @@ const char * EntityManager::InternalState::name(HandleKey<Entity> aHandle) const
     return mHandleMap.at(aHandle).mNamePtr->c_str();
 }
 
+Handle<Entity> EntityManager::InternalState::handleFromName(const handy::StringId & aNameId, EntityManager & aManager) const
+{
+    if (mHandleByNameMap.contains(aNameId))
+    {
+        return Handle<Entity>{mHandleByNameMap.at(aNameId), aManager};
+    }
+    else
+    {
+        return Handle<Entity>{};
+    }
+}
+
 
 void EntityManager::InternalState::freeHandle(HandleKey<Entity> aKey)
 { 
@@ -108,7 +120,12 @@ EntityManager::InternalState::getQueryBackendSet(const Archetype & aArchetype) c
     {
         TypeSet queryTypeSet{typeSequence.begin(), typeSequence.end()};
         if(std::includes(archetypeTypeSet.begin(), archetypeTypeSet.end(),
-                         queryTypeSet.begin(), queryTypeSet.end()))
+                         queryTypeSet.begin(), queryTypeSet.end()) &&
+                     std::find(
+                         archetypeTypeSet.begin(),
+                         archetypeTypeSet.end(),
+                         getId<Blueprint>()
+                     ) == archetypeTypeSet.end())
         {
             result.insert(backend.get());
         }
