@@ -49,7 +49,7 @@ SCENARIO("A user type can be wrapped.")
         WHEN("A Wrap of MyType is created for this manager.")
         {
             {
-                Wrap<MyType> wrapped{world};
+                Wrap<MyType> wrapped{world, "a"};
 
                 THEN("There is one entity in the manager.")
                 {
@@ -95,7 +95,7 @@ SCENARIO("Wrap construction.")
         WHEN("A Wrap of MyType is instantiated for this manager, with arguments for list initialization.")
         {
             const std::string str{"Message string"};
-            Wrap<MyType> myType{world, 1, 12.f, str};
+            Wrap<MyType> myType{world, "a", 1, 12.f, str};
 
             THEN("The list initialization values were stored.")
             {
@@ -108,7 +108,7 @@ SCENARIO("Wrap construction.")
         WHEN("A Wrap of TypeWithManager is instantiated for this manager, with arguments for a constructor.")
         {
             // Important: we did not have to repeat world argument, even though the ctor takes an EntityManager first.
-            Wrap<TypeWithManager> typeWithManager{world, 100};
+            Wrap<TypeWithManager> typeWithManager{world, "a", 100};
 
             THEN("The constructor was called.")
             {
