@@ -257,11 +257,20 @@ void Phase::append(F_operation && aOperation)
 template <class T_component>
 Entity & Entity::add(T_component aComponent)
 {
+    //GCC should not freakout because of a lambda instanciation
+    //even if the value is initialized
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#endif
     mPhase.append(
         [handle = mHandle, component = std::move(aComponent)] () mutable
         {
             handle.add<T_component>(std::move(component));
         });
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
     return *this;
 }
 
