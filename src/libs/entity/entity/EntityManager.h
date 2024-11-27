@@ -42,7 +42,7 @@ class EntityManager
         friend class Inspector;
 
     public:
-        Handle<Entity> addEntity(EntityManager & aManager, const char * aName);
+        Handle<Entity> addEntity(EntityManager & aManager, std::string & aName);
 
         std::size_t countLiveEntities() const;
 
@@ -120,7 +120,7 @@ class EntityManager
         // the same key position from the map perspective.
         std::map<HandleKey<Entity>, EntityRecord, HandleKey<Entity>::LessIndex>
             mHandleMap;
-        std::map<handy::StringId, HandleKey<Entity>> mHandleByNameMap;
+        std::unordered_map<handy::StringId, HandleKey<Entity>> mHandleByNameMap;
         std::deque<HandleKey<Entity>> mFreedHandles;
 
         // This must appear BEFORE the archetypes, so QueryBackends are
@@ -138,12 +138,12 @@ public:
     // could be doing it concurrently) An idea to evaluate: could it be
     // lock-free via read-modify-write? see:
     // https://preshing.com/20120612/an-introduction-to-lock-free-programming/
-    Handle<Entity> addEntity(const char * aName = nullptr)
+    Handle<Entity> addEntity(std::string aName = "")
     {
         return mState->addEntity(*this, aName);
     }
 
-    Handle<Entity> addBlueprint(const char * aName = nullptr)
+    Handle<Entity> addBlueprint(std::string aName = "")
     {
         auto handle = mState->addEntity(*this, aName);
         {
@@ -403,7 +403,7 @@ void Handle<Entity>::remove()
 
 inline Handle<Entity>
 EntityManager::InternalState::addEntity(EntityManager & aManager,
-                                        const char * aName)
+                                        std::string & aName)
 {
     // We know the empty archetype is first in the vector
     std::pair<Archetype &, HandleKey<Archetype>> emptyArchetype =
@@ -411,11 +411,11 @@ EntityManager::InternalState::addEntity(EntityManager & aManager,
 
     HandleKey<Entity> key = getAvailableHandle();
 
-    if (aName == nullptr)
+    if (aName == "")
     {
         std::stringstream newName;
         newName << "Entity " << key;
-        aName = newName.str().c_str();
+        aName = newName.str();
     }
 
     mHandleMap.insert_or_assign(key, EntityRecord{

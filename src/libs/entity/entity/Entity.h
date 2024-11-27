@@ -258,7 +258,7 @@ template <class T_component>
 Entity & Entity::add(T_component aComponent)
 {
     //GCC should not freakout because of a lambda instanciation
-    //even if the value is initialized
+    //even if the value is uninitialized
 #if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
