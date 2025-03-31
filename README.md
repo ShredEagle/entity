@@ -1,6 +1,11 @@
 # Entity
 
-ECS library based on archetypes.
+Entity-Component-System (ECS) library based on archetypes.
+It serves as a framework for implementing gameplay in video games
+but is also suitable for other types of simulations.
+
+It provides a data-oriented approach for efficiently operating on large numbers of entities
+while maintaining a programmer-friendly API and ensuring high runtime performance.
 
 ## Build (with Conan 2)
 
