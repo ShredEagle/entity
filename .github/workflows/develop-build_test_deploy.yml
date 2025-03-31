@@ -8,11 +8,9 @@ on:
 
 jobs:
   build:
-    uses: shredeagle/reusable-workflows/.github/workflows/main_build.yml@v2.7.0
+    uses: shredeagle/reusable-workflows/.github/workflows/main_build.yml@v3.0.0
     with:
-      os: >-
-        ["ubuntu-24.04", "windows-2022"]
-      deployrecipe_userchannel: adnn/develop
+      deployrecipe_user: adnn
     secrets:
       SHREDROBOT_GITHUB_TOKEN: ${{ secrets.SHREDROBOT_GITHUB_TOKEN }}
       ACTION_CACHENAME: ${{ secrets.ACTION_CACHENAME }}

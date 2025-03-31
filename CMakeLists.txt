@@ -12,8 +12,11 @@ cmc_include_conan_configuration()
 # Enable the grouping target in folders, when available in IDE.
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
-# Export compile commands by default
-set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
+# see: https://cmake.org/cmake/help/latest/module/CTest.html
+# To be included in the top CMakeLists.txt, creates BUILD_TESTING option (ON by default)
+# Invokes enable_testing() to enable add_test(), unless BUILD_TESTING is OFF.
+# note: Conan can set BUILD_TESTING to OFF through tools.build:skip_test configuration.
+include(CTest)
 
 # Install the top-level package config, allowing to find all sub-components
 include(cmc-install)
